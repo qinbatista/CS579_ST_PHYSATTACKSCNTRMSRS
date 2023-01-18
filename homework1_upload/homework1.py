@@ -1,7 +1,10 @@
 from MyTool.HackTool import HackTool
 from MyTool.DataManager import DataManager
+from multiprocessing import Pool
+import numpy as np
 def myFunction(givingValue):
-	# print(givingValue)
+	np.show_config()
+	#generate 1 million np random numbers
 	pass
 if __name__ == '__main__':
     #initialize all the tools
@@ -9,4 +12,4 @@ if __name__ == '__main__':
     myHackTool = HackTool()
 
     #start the processing
-    myHackTool._maxCoreProcessing(myFunction,[givingValue for givingValue in range(0, 10000)])
+    myHackTool._maxCoreProcessing(myFunction,[givingValue for givingValue in range(0, 1)])

@@ -13,7 +13,7 @@ class HackTool:
         self._timerStart()
         print("----------🛠️ Your System Information------")
         print("🖥️  	System: ", platform.system(), "		|")
-        print("🖲️  	rocessor: ", platform.processor(), "			|")
+        print("🖲️  	rocessor: ", platform.processor(), "		|")
         print("🎛️  	CPU cores: ", psutil.cpu_count(), "			|")
         print("💾  	RAM: ", psutil.virtual_memory().total / (1024.0 ** 3), "GB", "			|")
         print("-----------------------------------------\n")
