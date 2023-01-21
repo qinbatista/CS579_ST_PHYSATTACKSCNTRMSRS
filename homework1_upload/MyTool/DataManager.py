@@ -10,9 +10,10 @@ class DataManager:
 
     def _import_data(self):
         self.__data = np.genfromtxt(self.__path, delimiter=',')
-        self.__noise_data = self.__data[:,0:16]
+        self.__noise_data = self.__data[:,0:1]
+        pass
 
 if __name__ == '__main__':
-    myDataManager = DataManager('timing_noisy.csv')
+    # myDataManager = DataManager('timing_noisy.csv')
     myDataManager = DataManager('timing_noisy_test.csv')
     myDataManager._import_data()
