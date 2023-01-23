@@ -27,14 +27,16 @@ class DataManager:
             0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16]).reshape(16, 16)
         self.__vector_look_up_table = np.vectorize(self._look_up_table)
         self.__vector_find_time = np.vectorize(self._find_the_time)
-        self.__group0 = np.zeros((1000000, 1))
-        self.__group1 = np.zeros((1000000, 1))
+        self.__group0 = np.zeros((1000000, 256))
+        self.__group1 = np.zeros((1000000, 256))
+        self.__group0Count = np.zeros((1000000, 1))
+        self.__group1Count = np.zeros((1000000, 1))
+        self._import_data()
 
     def _import_data(self):
         self.__data = np.genfromtxt(self.__path, delimiter=',').astype(np.int32)[:, 0:17]
         self.__time_data = self.__data[:, 16:17]
         self.__data = self.__data[:, 0:16]
-        pass
 
     def _compute_all_key(self):
         _data = self.__data[:, 0:1]
@@ -45,21 +47,20 @@ class DataManager:
         value_from_plain_and_key = self.__data[:, 0:1] ^ self.__256bitKey[:, :]
         value_from_table = self.__vector_look_up_table(value_from_plain_and_key)
         _MSB_matrix = value_from_table & 0x80
-        value = np.where(_MSB_matrix == 0)
         count_0_group = np.where(_MSB_matrix == 0)
-        count_1_group = np.where(_MSB_matrix == 128)
-        self.__vector_find_time(count_0_group[1], count_0_group[0], 0)
-        self.__vector_find_time(count_1_group[1], count_1_group[0], 1)
-        self.__group0
-        self.__group1
+        count_1_group = np.where(_MSB_matrix == 0x80)
+        self.__vector_find_time(count_0_group[0], count_0_group[1], 0)
+        self.__vector_find_time(count_1_group[0], count_1_group[1], 1)
+        self.__group0 = self.__group0
+        self.__group1 = self.__group1
         pass
 
     def _look_up_table(self, value):
         return self.__sbox_table[value >> 4][value & 0x0F]
 
-    def _find_the_time(self, value, raw, group_index):
+    def _find_the_time(self, raw, value, group_index):
         if (group_index == 0):
-            self.__group0[raw] = self.__group0[raw] + self.__time_data[raw][0]
+            self.__group0[raw][value] = self.__time_data[raw][0]
         else:
             self.__group1[raw] = self.__group1[raw] + self.__time_data[raw][0]
         # return self.__time_data[index][0]
@@ -68,5 +69,4 @@ class DataManager:
 if __name__ == '__main__':
     # myDataManager = DataManager('timing_noisy.csv')
     myDataManager = DataManager('timing_noisy_test.csv')
-    myDataManager._import_data()
     myDataManager._compute_all_key()
