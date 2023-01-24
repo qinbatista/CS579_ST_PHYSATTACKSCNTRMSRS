@@ -99,6 +99,6 @@ if __name__ == '__main__':
 
     # with Pool(4) as p:
     #     p.map(myDataManager._print, [0, 1, 2, 3])
+    print(myDataManager._key)
     myDataManager._timer._timerStop()
     myDataManager._timer._displayExecutionTime()
-    print(myDataManager._key)
