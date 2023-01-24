@@ -6,9 +6,10 @@ from TimerTool import TimerTool
 class DataManager:
     def __init__(self, path):
         self._timer = TimerTool()
-        self.__data = np.zeros((1000000, 17))
+        self.__data = None
+        self.__shape = None
         self.__path = path
-        self.__time_data = np.zeros((1000000, 1))
+
         self.__256bitKey = np.arange(256).reshape(1, 256)
         self.__sbox_table = [
             0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
@@ -27,17 +28,19 @@ class DataManager:
             0x70, 0x3E, 0xB5, 0x66, 0x48, 0x03, 0xF6, 0x0E, 0x61, 0x35, 0x57, 0xB9, 0x86, 0xC1, 0x1D, 0x9E,
             0xE1, 0xF8, 0x98, 0x11, 0x69, 0xD9, 0x8E, 0x94, 0x9B, 0x1E, 0x87, 0xE9, 0xCE, 0x55, 0x28, 0xDF,
             0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16]
-        self.__vector_look_up_table = np.vectorize(self._look_up_table)
-        self.__vector_find_time = np.vectorize(self._find_the_time)
-        self.__group0 = np.zeros((16, 1000000, 256))
-        self.__group1 = np.zeros((16, 1000000, 256))
+        # self.__vector_look_up_table = np.vectorize(self._look_up_table)
+        # self.__vector_find_time = np.vectorize(self._find_the_time)
+        self._import_data()
+        self.__group0 = np.zeros((self.__shape[1], self.__shape[0], 256))
+        self.__group1 = np.zeros((self.__shape[1], self.__shape[0], 256))
+        self.__time_data = np.zeros((self.__shape[0], 1))
         self.__group0Count = np.zeros((16, 1, 256)).astype(np.int32)
         self.__group1Count = np.zeros((16, 1, 256)).astype(np.int32)
-        self._import_data()
         self._key = [0]*16
 
     def _import_data(self):
         self.__data = np.genfromtxt(self.__path, delimiter=',').astype(np.int32)[:, 0:17]
+        self.__shape = self.__data.shape
         self.__time_data = self.__data[:, 16:17]
         self.__data = self.__data[:, 0:16]
 
@@ -47,13 +50,23 @@ class DataManager:
         value_from_plain_and_key = self.__data[:, column_index:column_index+1] ^ self.__256bitKey
 
         # generate look up table vales
-        _MSB_matrix = self.__vector_look_up_table(value_from_plain_and_key) & 0x80
+        _MSB_matrix = np.zeros(value_from_plain_and_key.shape)
+        # for i in range(value_from_plain_and_key.shape[0]):
+        #     for j in range(value_from_plain_and_key.shape[1]):
+        #         _MSB_matrix[i][j] = self.__sbox_table[value_from_plain_and_key[i][j]] & 0x80
+        #         if _MSB_matrix[i][j] == 0:
+        #             self.__group0[column_index][i][j] = self.__group0[column_index][i][j] + self.__time_data[i][0]
+        #             self.__group0Count[column_index][0][j] = self.__group0Count[column_index][0][j] + 1
+        #         else:
+        #             self.__group1[column_index][i][j] = self.__group1[column_index][i][j] + self.__time_data[i][0]
+        #             self.__group1Count[column_index][0][j] = self.__group1Count[column_index][0][j] + 1
+        # _MSB_matrix = self.__vector_look_up_table(value_from_plain_and_key)
+        # for i in range(value_from_plain_and_key.shape[0]):
+        #     for j in range(value_from_plain_and_key.shape[1]):
         count_0_group = np.where(_MSB_matrix == 0)
         count_1_group = np.where(_MSB_matrix == 0x80)
-
-        self.__vector_find_time(column_index, count_0_group[0], count_0_group[1], 0)
-        self.__vector_find_time(column_index, count_1_group[0], count_1_group[1], 0x80)
-
+        self._find_the_time(column_index, count_0_group[0], count_0_group[1], 0)
+        self._find_the_time(column_index, count_1_group[0], count_1_group[1], 0x80)
         sumGroup0 = np.sum(self.__group0[column_index], axis=0)
         sumGroup1 = np.sum(self.__group1[column_index], axis=0)
         aveSumGroup0 = sumGroup0/self.__group0Count[column_index]
@@ -99,6 +112,6 @@ if __name__ == '__main__':
 
     # with Pool(4) as p:
     #     p.map(myDataManager._print, [0, 1, 2, 3])
-    print(myDataManager._key)
     myDataManager._timer._timerStop()
     myDataManager._timer._displayExecutionTime()
+    print(myDataManager._key)
