@@ -46,9 +46,13 @@ class DataManager:
         # generate 0 raw's plain text XOR key
         # first 100000 value
         value_from_plain_and_key = self.__data[:, column_index:column_index+1] ^ self.__256bitKey
-
+        # print(self.__sbox_table)
+        _MSB_matrix = np.zeros(value_from_plain_and_key.shape)
+        for index, value in enumerate(self.__sbox_table):
+            _MSB_matrix = _MSB_matrix+(np.where(value_from_plain_and_key == index, value, 0)&0x80)
+        # value_table = value_table & 0x80
         # generate look up table vales
-        _MSB_matrix = self.__vector_look_up_table(value_from_plain_and_key) & 0x80
+        # _MSB_matrix = self.__vector_look_up_table(value_from_plain_and_key) & 0x80
         count_0_group = np.where(_MSB_matrix == 0)
         count_1_group = np.where(_MSB_matrix == 0x80)
 
