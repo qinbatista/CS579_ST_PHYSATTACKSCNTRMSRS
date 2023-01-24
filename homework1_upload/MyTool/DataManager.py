@@ -1,9 +1,12 @@
 import numpy as np
+from multiprocessing import Pool
+from TimerTool import TimerTool
 
 
 class DataManager:
     def __init__(self, path):
         np.show_config()
+        self.__timer = TimerTool()
         self.__data = np.zeros((1000000, 17))
         self.__path = path
         self.__time_data = np.zeros((1000000, 1))
@@ -32,31 +35,47 @@ class DataManager:
         self.__group0Count = np.zeros((1, 256)).astype(np.int32)
         self.__group1Count = np.zeros((1, 256)).astype(np.int32)
         self._import_data()
+        self._key = [0]*16
 
     def _import_data(self):
         self.__data = np.genfromtxt(self.__path, delimiter=',').astype(np.int32)[:, 0:17]
         self.__time_data = self.__data[:, 16:17]
         self.__data = self.__data[:, 0:16]
 
-    def _compute_all_key(self):
-        columnData = self.__data[:, 0:1]
-        value_from_plain_and_key = columnData ^ self.__256bitKey[:, :]
-        value_from_table = self.__vector_look_up_table(value_from_plain_and_key)
+    def _compute_all_key(self, column_index):
+        # generate 0 raw's plain text XOR key
+        value_from_plain_and_key = self.__data[:, column_index:column_index+1] ^ self.__256bitKey[:, :]
+
+        # generate look up table vales
+        self.__timer._timerStart()
+        value_from_table = self.__vector_look_up_table(value_from_plain_and_key >> 4, value_from_plain_and_key & 0x0F)
+        self.__timer._timerStop()
+        self.__timer._displayExecutionTime()
+
         _MSB_matrix = value_from_table & 0x80
         count_0_group = np.where(_MSB_matrix == 0)
         count_1_group = np.where(_MSB_matrix == 0x80)
+
+        self.__timer._timerStart()
         self.__vector_find_time(count_0_group[0], count_0_group[1], 0)
+        self.__timer._timerStop()
+        self.__timer._displayExecutionTime()
+
+        self.__timer._timerStart()
         self.__vector_find_time(count_1_group[0], count_1_group[1], 1)
+        self.__timer._timerStop()
+        self.__timer._displayExecutionTime()
+
         sumGroup0 = np.sum(self.__group0, axis=0)
         sumGroup1 = np.sum(self.__group1, axis=0)
         aveSumGroup0 = sumGroup0/self.__group0Count
         aveSumGroup1 = sumGroup1/self.__group1Count
         value = aveSumGroup0-aveSumGroup1
-        key = np.argmax(value)
+        self._key[column_index] = np.argmax(value)
         pass
 
-    def _look_up_table(self, value):
-        return self.__sbox_table[value >> 4][value & 0x0F]
+    def _look_up_table(self, raw, column):
+        return self.__sbox_table[raw][column]
 
     def _find_the_time(self, raw, column, group_index):
         if (group_index == 0):
@@ -69,8 +88,14 @@ class DataManager:
             pass
         # return self.__time_data[index][0]
 
+    def _findKey(self):
+        with Pool() as p:
+            p.map(self._compute_all_key, [int for int in range(16)])
+
 
 if __name__ == '__main__':
+
     # myDataManager = DataManager('timing_noisy.csv')
     myDataManager = DataManager('timing_noisy_test.csv')
-    myDataManager._compute_all_key()
+    myDataManager._compute_all_key(0)
+    myDataManager._findKey()

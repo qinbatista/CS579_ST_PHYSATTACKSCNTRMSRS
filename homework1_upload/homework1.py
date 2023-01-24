@@ -1,4 +1,4 @@
-from MyTool.TimerTool import HackTool
+from MyTool.TimerTool import TimerTool
 from MyTool.DataManager import DataManager
 from multiprocessing import Pool
 import numpy as np
@@ -54,6 +54,6 @@ if __name__ == '__main__':
     # initialize all the tools
     Question1()
     myDataManager = DataManager('timing_noisy.csv')
-    myHackTool = HackTool()
+    myHackTool = TimerTool()
     # myHackTool._maxCoreProcessing(myFunction, [givingValue for givingValue in range(0, 1)])
     # start the processing

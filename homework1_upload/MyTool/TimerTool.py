@@ -5,15 +5,16 @@ import psutil
 from multiprocessing import Pool
 
 
-class HackTool:
+class TimerTool:
     def __init__(self):
         self.__startTime = 0
         self.__executionTime = 0
         self.__number_of_tasks = 0
         self._timerStart()
+        self._cores_count = psutil.cpu_count()
         print("----------🛠️ Your System Information------")
         print("🖥️  	System: ", platform.system(), "		|")
-        print("🖲️  	rocessor: ", platform.processor(), "		|")
+        print("🖲️  	processor: ", platform.processor(), "		|")
         print("🎛️  	CPU cores: ", psutil.cpu_count(), "			|")
         print("💾  	RAM: ", psutil.virtual_memory().total / (1024.0 ** 3), "GB", "			|")
         print("-----------------------------------------\n")
@@ -46,5 +47,5 @@ class HackTool:
 
 
 if __name__ == '__main__':
-    myHackTool = HackTool()
+    myHackTool = TimerTool()
     myHackTool._displayExecutionTime()
