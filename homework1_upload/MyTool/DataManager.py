@@ -29,8 +29,8 @@ class DataManager:
         self.__vector_find_time = np.vectorize(self._find_the_time)
         self.__group0 = np.zeros((1000000, 256))
         self.__group1 = np.zeros((1000000, 256))
-        self.__group0Count = np.zeros((1000000, 1))
-        self.__group1Count = np.zeros((1000000, 1))
+        self.__group0Count = np.zeros((1, 256)).astype(np.int32)
+        self.__group1Count = np.zeros((1, 256)).astype(np.int32)
         self._import_data()
 
     def _import_data(self):
@@ -39,30 +39,34 @@ class DataManager:
         self.__data = self.__data[:, 0:16]
 
     def _compute_all_key(self):
-        _data = self.__data[:, 0:1]
-        _key = self.__256bitKey[:, :]
-        value = _data ^ _key
-        value = value & 0x80
-
-        value_from_plain_and_key = self.__data[:, 0:1] ^ self.__256bitKey[:, :]
+        columnData = self.__data[:, 0:1]
+        value_from_plain_and_key = columnData ^ self.__256bitKey[:, :]
         value_from_table = self.__vector_look_up_table(value_from_plain_and_key)
         _MSB_matrix = value_from_table & 0x80
         count_0_group = np.where(_MSB_matrix == 0)
         count_1_group = np.where(_MSB_matrix == 0x80)
         self.__vector_find_time(count_0_group[0], count_0_group[1], 0)
         self.__vector_find_time(count_1_group[0], count_1_group[1], 1)
-        self.__group0 = self.__group0
-        self.__group1 = self.__group1
+        sumGroup0 = np.sum(self.__group0, axis=0)
+        sumGroup1 = np.sum(self.__group1, axis=0)
+        aveSumGroup0 = sumGroup0/self.__group0Count
+        aveSumGroup1 = sumGroup1/self.__group1Count
+        value = aveSumGroup0-aveSumGroup1
+        key = np.argmax(value)
         pass
 
     def _look_up_table(self, value):
         return self.__sbox_table[value >> 4][value & 0x0F]
 
-    def _find_the_time(self, raw, value, group_index):
+    def _find_the_time(self, raw, column, group_index):
         if (group_index == 0):
-            self.__group0[raw][value] = self.__time_data[raw][0]
+            self.__group0[raw][column] = self.__group0[raw][column]+self.__time_data[raw][0]
+            self.__group0Count[0][column] = self.__group0Count[0][column]+1
+            pass
         else:
-            self.__group1[raw] = self.__group1[raw] + self.__time_data[raw][0]
+            self.__group1[raw][column] = self.__group1[raw][column]+self.__time_data[raw][0]
+            self.__group1Count[0][column] = self.__group1Count[0][column]+1
+            pass
         # return self.__time_data[index][0]
 
 

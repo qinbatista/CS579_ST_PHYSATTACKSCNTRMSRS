@@ -1,4 +1,4 @@
-from MyTool.HackTool import HackTool
+from MyTool.TimerTool import HackTool
 from MyTool.DataManager import DataManager
 from multiprocessing import Pool
 import numpy as np
