@@ -5,8 +5,7 @@ from TimerTool import TimerTool
 
 class DataManager:
     def __init__(self, path):
-        np.show_config()
-        self.__timer = TimerTool()
+        self._timer = TimerTool()
         self.__data = np.zeros((1000000, 17))
         self.__path = path
         self.__time_data = np.zeros((1000000, 1))
@@ -30,10 +29,10 @@ class DataManager:
             0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16]).reshape(16, 16)
         self.__vector_look_up_table = np.vectorize(self._look_up_table)
         self.__vector_find_time = np.vectorize(self._find_the_time)
-        self.__group0 = np.zeros((1000000, 256))
-        self.__group1 = np.zeros((1000000, 256))
-        self.__group0Count = np.zeros((1, 256)).astype(np.int32)
-        self.__group1Count = np.zeros((1, 256)).astype(np.int32)
+        self.__group0 = np.zeros((16, 1000000, 256))
+        self.__group1 = np.zeros((16, 1000000, 256))
+        self.__group0Count = np.zeros((16, 1, 256)).astype(np.int32)
+        self.__group1Count = np.zeros((16, 1, 256)).astype(np.int32)
         self._import_data()
         self._key = [0]*16
 
@@ -47,29 +46,19 @@ class DataManager:
         value_from_plain_and_key = self.__data[:, column_index:column_index+1] ^ self.__256bitKey[:, :]
 
         # generate look up table vales
-        self.__timer._timerStart()
         value_from_table = self.__vector_look_up_table(value_from_plain_and_key >> 4, value_from_plain_and_key & 0x0F)
-        self.__timer._timerStop()
-        self.__timer._displayExecutionTime()
 
         _MSB_matrix = value_from_table & 0x80
         count_0_group = np.where(_MSB_matrix == 0)
         count_1_group = np.where(_MSB_matrix == 0x80)
 
-        self.__timer._timerStart()
-        self.__vector_find_time(count_0_group[0], count_0_group[1], 0)
-        self.__timer._timerStop()
-        self.__timer._displayExecutionTime()
+        self.__vector_find_time(column_index, count_0_group[0], count_0_group[1], 0)
+        self.__vector_find_time(column_index, count_1_group[0], count_1_group[1], 1)
 
-        self.__timer._timerStart()
-        self.__vector_find_time(count_1_group[0], count_1_group[1], 1)
-        self.__timer._timerStop()
-        self.__timer._displayExecutionTime()
-
-        sumGroup0 = np.sum(self.__group0, axis=0)
-        sumGroup1 = np.sum(self.__group1, axis=0)
-        aveSumGroup0 = sumGroup0/self.__group0Count
-        aveSumGroup1 = sumGroup1/self.__group1Count
+        sumGroup0 = np.sum(self.__group0[column_index], axis=0)
+        sumGroup1 = np.sum(self.__group1[column_index], axis=0)
+        aveSumGroup0 = sumGroup0/self.__group0Count[column_index]
+        aveSumGroup1 = sumGroup1/self.__group1Count[column_index]
         value = aveSumGroup0-aveSumGroup1
         self._key[column_index] = np.argmax(value)
         pass
@@ -77,25 +66,38 @@ class DataManager:
     def _look_up_table(self, raw, column):
         return self.__sbox_table[raw][column]
 
-    def _find_the_time(self, raw, column, group_index):
+    def _find_the_time(self, column_index, raw, column, group_index):
         if (group_index == 0):
-            self.__group0[raw][column] = self.__group0[raw][column]+self.__time_data[raw][0]
-            self.__group0Count[0][column] = self.__group0Count[0][column]+1
+            self.__group0[column_index][raw][column] = self.__group0[column_index][raw][column]+self.__time_data[raw][0]
+            self.__group0Count[column_index][0][column] = self.__group0Count[column_index][0][column]+1
             pass
         else:
-            self.__group1[raw][column] = self.__group1[raw][column]+self.__time_data[raw][0]
-            self.__group1Count[0][column] = self.__group1Count[0][column]+1
+            self.__group1[column_index][raw][column] = self.__group1[column_index][raw][column]+self.__time_data[raw][0]
+            self.__group1Count[column_index][0][column] = self.__group1Count[column_index][0][column]+1
             pass
         # return self.__time_data[index][0]
 
+    def _print(self):
+        print("1")
+
     def _findKey(self):
         with Pool() as p:
-            p.map(self._compute_all_key, [int for int in range(16)])
+            p.map(self._print, [blur for blur in range(0, 300, 2)])
 
 
 if __name__ == '__main__':
-
-    # myDataManager = DataManager('timing_noisy.csv')
-    myDataManager = DataManager('timing_noisy_test.csv')
+    myDataManager = DataManager('timing_noisy.csv')
+    myDataManager._timer._timerStart()
+    # myDataManager = DataManager('timing_noisy_test.csv')
+    # myDataManager._timer._timerStart()
     myDataManager._compute_all_key(0)
-    myDataManager._findKey()
+    # myDataManager._compute_all_key(1)
+    # myDataManager._compute_all_key(2)
+    # myDataManager._compute_all_key(3)
+    # print(myDataManager._key)
+    # myDataManager._timer._timerStop()
+
+    # with Pool(4) as p:
+    #     p.map(myDataManager._print, [0, 1, 2, 3])
+    # print(myDataManager._key)
+    myDataManager._timer._timerStop()
