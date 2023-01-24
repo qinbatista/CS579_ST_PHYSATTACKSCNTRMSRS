@@ -7,9 +7,8 @@ class DataManager:
     def __init__(self, path):
         self._timer = TimerTool()
         self.__data = None
-        self.__shape = None
         self.__path = path
-
+        self.__time_data = None
         self.__256bitKey = np.arange(256).reshape(1, 256)
         self.__sbox_table = [
             0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
@@ -31,9 +30,8 @@ class DataManager:
         self.__vector_look_up_table = np.vectorize(self._look_up_table)
         self.__vector_find_time = np.vectorize(self._find_the_time)
         self._import_data()
-        self.__group0 = np.zeros((self.__shape[1], self.__shape[0], 256))
-        self.__group1 = np.zeros((self.__shape[1], self.__shape[0], 256))
-        self.__time_data = np.zeros((self.__shape[0], 1))
+        self.__group0 = np.zeros((16, self.__shape[0], 256))
+        self.__group1 = np.zeros((16, self.__shape[0], 256))
         self.__group0Count = np.zeros((16, 1, 256)).astype(np.int32)
         self.__group1Count = np.zeros((16, 1, 256)).astype(np.int32)
         self._key = [0]*16
@@ -45,12 +43,18 @@ class DataManager:
         self.__data = self.__data[:, 0:16]
 
     def _compute_all_key(self, column_index):
+        # generate 0 raw's plain text XOR key
+        # first 100000 value
         value_from_plain_and_key = self.__data[:, column_index:column_index+1] ^ self.__256bitKey
-        _MSB_matrix = self.__vector_look_up_table(value_from_plain_and_key)
+
+        # generate look up table vales
+        _MSB_matrix = self.__vector_look_up_table(value_from_plain_and_key) & 0x80
         count_0_group = np.where(_MSB_matrix == 0)
         count_1_group = np.where(_MSB_matrix == 0x80)
+
         self.__vector_find_time(column_index, count_0_group[0], count_0_group[1], 0)
         self.__vector_find_time(column_index, count_1_group[0], count_1_group[1], 0x80)
+
         sumGroup0 = np.sum(self.__group0[column_index], axis=0)
         sumGroup1 = np.sum(self.__group1[column_index], axis=0)
         aveSumGroup0 = sumGroup0/self.__group0Count[column_index]
