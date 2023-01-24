@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 #from numba import jit
 #from tqdm.notebook import tqdm
-
+import time
 # not optimized; for your reference
 sbox = [
     0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
@@ -43,7 +43,7 @@ np.shape(plaintext)
 def attack():
     result = []
 
-    for postion in range(16):  # attack all bytes
+    for postion in range(1):  # attack all bytes
         delta = []
         for k in range(256):  # guess our key
             group1 = 0
@@ -51,7 +51,7 @@ def attack():
             group0 = 0
             group0_counter = 0
 
-            for row in range(100):  # read all/some rows of .csv
+            for row in range(44985):  # read all/some rows of .csv
                 value1 = int(timings[row][postion])
                 value2 = int(timings[row][postion]) ^ k
                 # print(value2)
@@ -63,15 +63,13 @@ def attack():
                 else:
                     group0 += timings[row][16]
                     group0_counter += 1
-            print(str(group0)+" "+str(group0_counter))
-            print(str(group1)+" "+str(group1_counter))
-            print(str(group0/group0_counter))
-            print(str(group1/group1_counter))
             delta.append(group1/group1_counter - group0/group0_counter)
 
         result.append(np.argmax(delta))
     return result
 
-
+startTime = time.time()
 r = attack()
+executionTime = time.time() - startTime
 print(r)
+print(executionTime)

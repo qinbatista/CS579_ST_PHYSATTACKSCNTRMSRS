@@ -90,7 +90,7 @@ if __name__ == '__main__':
     # myDataManager = DataManager('timing_noisy.csv')
     myDataManager = DataManager('timing_noisy_test.csv')
     myDataManager._timer._timerStart()
-    for i in range(0, 16):
+    for i in range(0, 1):
         myDataManager._compute_all_key(i)
     # myDataManager._compute_all_key(2)
     # myDataManager._compute_all_key(3)
@@ -99,6 +99,6 @@ if __name__ == '__main__':
 
     # with Pool(4) as p:
     #     p.map(myDataManager._print, [0, 1, 2, 3])
-    print(myDataManager._key)
     myDataManager._timer._timerStop()
     myDataManager._timer._displayExecutionTime()
+    print(myDataManager._key)
