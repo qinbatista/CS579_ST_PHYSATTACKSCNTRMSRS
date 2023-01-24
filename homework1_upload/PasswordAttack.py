@@ -1,5 +1,5 @@
 import numpy as np
-from multiprocessing import Pool
+from multiprocessing import Pool, Manager
 from TimerTool import TimerTool
 
 
@@ -27,16 +27,20 @@ class PasswordAttack:
             0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16]
         self._import_data()
         self._key = [0]*16
+        self._shared_var = None
 
     def _import_data(self):
         self.__data = np.genfromtxt(self.__path, delimiter=',').astype(np.int32)[:, 0:17]
         self.__shape = self.__data.shape
 
     def _attack_all_keys(self):
+        manager = Manager()
+        self._shared_var = manager.dict()
+        lock = manager.Lock()
         with Pool() as p:
-            p.map(self._attack_256_keys, [position for position in range(16)])
+            p.starmap(self._attack_256_keys, [(position, self._shared_var, lock) for position in range(16)])
 
-    def _attack_256_keys(self, position):
+    def _attack_256_keys(self, position, shared_var, lock):
         delta = []
         for k in range(256):  # guess our key
             group1 = 0
@@ -53,15 +57,22 @@ class PasswordAttack:
                     group0 += self.__data[row][16]
                     group0_counter += 1
             delta.append(group1/group1_counter - group0/group0_counter)
+        lock.acquire()
+        shared_var[position] = np.argmax(delta)
         self._key[position] = np.argmax(delta)
-        print("["+str(position)+"]"+str(self._key[position]))
+        lock.release()
+        # print("["+str(position)+"]"+str(shared_var))
+        # print("["+str(position)+"]"+str(self._key[position]))
 
 
 if __name__ == '__main__':
-    # myDataManager = DataManager('timing_noisy.csv')
-    myDataManager = PasswordAttack('timing_noisy_test.csv')
+    myDataManager = PasswordAttack('timing_noisy.csv')
+    # myDataManager = PasswordAttack('timing_noisy_test.csv')
     myDataManager._timer._timerStart()
     myDataManager._attack_all_keys()
     myDataManager._timer._timerStop()
     myDataManager._timer._displayExecutionTime()
-    print(myDataManager._key)
+    _string = ""
+    for i in range(16):
+        _string =_string+str(myDataManager._shared_var[i])+" "
+    print(_string)

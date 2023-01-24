@@ -43,7 +43,7 @@ np.shape(plaintext)
 def attack():
     result = []
 
-    for postion in range(1):  # attack all bytes
+    for postion in range(16):  # attack all bytes
         delta = []
         for k in range(256):  # guess our key
             group1 = 0
@@ -51,7 +51,7 @@ def attack():
             group0 = 0
             group0_counter = 0
 
-            for row in range(100000):  # read all/some rows of .csv
+            for row in range(10000):  # read all/some rows of .csv
                 # print(value2)
                 msb = sbox[int(timings[row][postion]) ^ k]
                 msb = msb & 0x80
