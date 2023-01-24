@@ -51,7 +51,7 @@ def attack():
             group0 = 0
             group0_counter = 0
 
-            for row in range(1000):  # read all/some rows of .csv
+            for row in range(100000):  # read all/some rows of .csv
                 # print(value2)
                 msb = sbox[int(timings[row][postion]) ^ k]
                 msb = msb & 0x80
@@ -69,5 +69,5 @@ def attack():
 startTime = time.time()
 r = attack()
 executionTime = time.time() - startTime
-print(r)
 print(executionTime)
+print(r)
