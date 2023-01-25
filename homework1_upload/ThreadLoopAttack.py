@@ -66,8 +66,8 @@ class PasswordAttack:
 
 
 if __name__ == '__main__':
-    myDataManager = PasswordAttack('timing_noisy.csv')
-    # myDataManager = PasswordAttack('timing_noisy_test.csv')
+    # myDataManager = PasswordAttack('timing_noisy.csv')
+    myDataManager = PasswordAttack('timing_noisy_test.csv')
     myDataManager._timer._timerStart()
     myDataManager._attack_all_keys()
     myDataManager._timer._timerStop()
