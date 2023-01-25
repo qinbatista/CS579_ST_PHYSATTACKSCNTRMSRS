@@ -135,13 +135,13 @@ class DataManager:
         for i in range(sample_size_increase_count):
             ax[i].plot(delta_list[i], 'black', color=(0, 0, 0))
             ax[i].set_ylabel('delta time')
-            ax[i].set_ylabel('candidate key')
+            ax[i].set_ylabel('can')
         plt.show()
 
 
 if __name__ == '__main__':
     myDataManager = DataManager('timing_noisy.csv')
-    # myDataManager._attack_loop()
+    myDataManager._attack_loop()
     # myDataManager._attack_thread()
     # myDataManager._AESEncrypt()
-    myDataManager._get_sample_plot()
+    # myDataManager._get_sample_plot()
