@@ -55,9 +55,9 @@ class DataManager:
         ave1 = count_1_group_255_time/count_1_group_index
         value = ave1 - ave0
         # self._key[column_index] = np.argmax(value)
-        # lock.acquire()
+        lock.acquire()
         shared_var[column_index] = np.argmax(value)
-        # lock.release()
+        lock.release()
         pass
 
 
