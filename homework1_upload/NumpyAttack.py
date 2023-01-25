@@ -1,6 +1,7 @@
 import numpy as np
 from multiprocessing import Pool, Manager
 from TimerTool import TimerTool
+from matplotlib import pyplot as plt
 
 
 class DataManager:
@@ -36,15 +37,15 @@ class DataManager:
         self.__data = self.__data[:, 0:16]
 
     def _compute_all_key_thread(self, column_index, shared_var, lock):
-        value = self.__numpy_compute(column_index)
+        delta = self.__numpy_compute(column_index)
         lock.acquire()
-        shared_var[column_index] = np.argmax(value)
+        shared_var[column_index] = np.argmax(delta)
         lock.release()
         pass
 
     def _compute_all_key_loop(self, column_index):
-        value = self.__numpy_compute(column_index)
-        self._key[column_index] = np.argmax(value)
+        delta = self.__numpy_compute(column_index)
+        self._key[column_index] = np.argmax(delta)
 
     def __numpy_compute(self, column_index):
         value_from_plain_and_key = self.__data[:, column_index:column_index+1] ^ self.__256bitKey
@@ -108,9 +109,43 @@ class DataManager:
             _string = _string+str(hex(result[i]))+" "
         print(_string)
 
+    def _get_sample_plot(self):
+        sample_size = 10000
+        sample_size_increase_count = 12
+        delta_list = []
+        for i in range(sample_size_increase_count):
+            value_from_plain_and_key = self.__data[0:sample_size*(i+1), 0:1] ^ self.__256bitKey
+            time_data = self.__time_data[0:sample_size*(i+1),]
+            _MSB_matrix = np.take(self._sbox_table, value_from_plain_and_key) & 0x80
+            _MSB_matrix_0 = np.where(_MSB_matrix == 0, 1, 0)
+            count_0_group_index = np.sum(_MSB_matrix_0, axis=0)
+            count_0_group_time = _MSB_matrix_0*time_data
+            count_0_group_255_time = np.sum(count_0_group_time, axis=0)
+            ave0 = count_0_group_255_time/count_0_group_index
+
+            _MSB_matrix_1 = np.where(_MSB_matrix == 128, 1, 0)
+            count_1_group_index = np.sum(_MSB_matrix_1, axis=0)
+            count_1_group_time = _MSB_matrix_1*time_data
+            count_1_group_255_time = np.sum(count_1_group_time, axis=0)
+            ave1 = count_1_group_255_time/count_1_group_index
+            delta =  ave1 - ave0
+            delta_list.append(delta)
+            print(np.argmax(delta))
+        fig, ax = plt.subplots(figsize=(8, 4))
+        gradient = 0.7/len(delta_list)
+        for index, _delta in enumerate(delta_list):
+            if (1-gradient*index) < 0:
+                ax.plot(_delta, 'black', color=(0, 0, 0))
+            else:
+                ax.plot(_delta, 'black', color=(0.7-gradient*index, 0.7-gradient*index, 0.7-gradient*index))
+        ax.set_xlabel('key candidate')
+        ax.set_ylabel('delta time')
+        plt.show()
+
 
 if __name__ == '__main__':
     myDataManager = DataManager('timing_noisy.csv')
     # myDataManager._attack_loop()
-    myDataManager._attack_thread()
+    # myDataManager._attack_thread()
     # myDataManager._AESEncrypt()
+    myDataManager._get_sample_plot()
