@@ -1,5 +1,5 @@
 import numpy as np
-from multiprocessing import Pool
+from multiprocessing import Pool, Manager
 from TimerTool import TimerTool
 from numba import jit, njit, prange
 
@@ -28,67 +28,54 @@ class DataManager:
             0x70, 0x3E, 0xB5, 0x66, 0x48, 0x03, 0xF6, 0x0E, 0x61, 0x35, 0x57, 0xB9, 0x86, 0xC1, 0x1D, 0x9E,
             0xE1, 0xF8, 0x98, 0x11, 0x69, 0xD9, 0x8E, 0x94, 0x9B, 0x1E, 0x87, 0xE9, 0xCE, 0x55, 0x28, 0xDF,
             0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16])
-        self.__vector_look_up_table = np.vectorize(self._look_up_table)
-        self.__vector_find_time = np.vectorize(self._find_the_time)
         self._import_data()
-        self.__group0 = np.zeros((16, self.__shape[0], 256))
-        self.__group1 = np.zeros((16, self.__shape[0], 256))
-        self.__group0Count = np.zeros((16, 1, 256)).astype(np.int32)
-        self.__group1Count = np.zeros((16, 1, 256)).astype(np.int32)
         self._key = [0]*16
 
     def _import_data(self):
         self.__data = np.genfromtxt(self.__path, delimiter=',').astype(np.int32)[:, 0:17]
-        self.__shape = self.__data.shape
         self.__time_data = self.__data[:, 16:17]
         self.__data = self.__data[:, 0:16]
 
-    def _compute_all_key(self, column_index):
+    def _compute_all_key(self, column_index, shared_var, lock):
         # generate 0 raw's plain text XOR key
         # first 100000 value
         value_from_plain_and_key = self.__data[:, column_index:column_index+1] ^ self.__256bitKey
-        # _MSB_matrix = np.zeros(value_from_plain_and_key.shape)
-        # for index, value in enumerate(self.__sbox_table):
-        #     _MSB_matrix = _MSB_matrix+(np.where(value_from_plain_and_key == index, value, 0)&0x80)
-        # value_table = value_table & 0x80
-        # generate look up table vales
+
         _MSB_matrix = np.take(self.__sbox_table, value_from_plain_and_key) & 0x80
-        _MSB_matrix = np.where(_MSB_matrix==0,0,1)
-        count_0_group = np.where(_MSB_matrix == 0)
-        count_1_group = np.where(_MSB_matrix == 0x80)
+        _MSB_matrix_0 = np.where(_MSB_matrix == 0, 1, 0)
+        count_0_group_index = np.sum(_MSB_matrix_0, axis=0)
+        count_0_group_time = _MSB_matrix_0*self.__time_data
+        count_0_group_255_time = np.sum(count_0_group_time, axis=0)
+        ave0 = count_0_group_255_time/count_0_group_index
 
-        self.__vector_find_time(column_index, count_0_group[0], count_0_group[1], 0)
-        self.__vector_find_time(column_index, count_1_group[0], count_1_group[1], 0x80)
-        sumGroup0 = np.sum(self.__group0[column_index], axis=0)
-        sumGroup1 = np.sum(self.__group1[column_index], axis=0)
-        aveSumGroup0 = sumGroup0/self.__group0Count[column_index]
-        aveSumGroup1 = sumGroup1/self.__group1Count[column_index]
-        value = aveSumGroup1-aveSumGroup0
-        self._key[column_index] = np.argmax(value)
+        _MSB_matrix_1 = np.where(_MSB_matrix == 128, 1, 0)
+        count_1_group_index = np.sum(_MSB_matrix_1, axis=0)
+        count_1_group_time = _MSB_matrix_1*self.__time_data
+        count_1_group_255_time = np.sum(count_1_group_time, axis=0)
+        ave1 = count_1_group_255_time/count_1_group_index
+        value = ave1 - ave0
+        # self._key[column_index] = np.argmax(value)
+        # lock.acquire()
+        shared_var[column_index] = np.argmax(value)
+        # lock.release()
         pass
-
-    def _look_up_table(self, value):
-        return self.__sbox_table[value]
-
-    def _find_the_time(self, column_index, raw, column, group_index):
-        if (group_index == 0):
-            if (self.__group1[column_index][raw][column] == 0):
-                self.__group0[column_index][raw][column] = self.__group0[column_index][raw][column] + self.__time_data[raw][0]
-                self.__group0Count[column_index][0][column] = self.__group0Count[column_index][0][column] + 1
-            pass
-        if (group_index == 0x80):
-            if (self.__group1[column_index][raw][column] == 0):
-                self.__group1[column_index][raw][column] = self.__group1[column_index][raw][column] + self.__time_data[raw][0]
-                self.__group1Count[column_index][0][column] = self.__group1Count[column_index][0][column] + 1
-            pass
 
 
 if __name__ == '__main__':
     # myDataManager = DataManager('timing_noisy.csv')
     myDataManager = DataManager('timing_noisy_test.csv')
+    manager = Manager()
+    _shared_var = manager.dict()
+    lock = manager.Lock()
     myDataManager._timer._timerStart()
-    for i in range(16):
-        myDataManager._compute_all_key(i)
+    # for i in range(16):
+    #     myDataManager._compute_all_key(i)
+    # print(myDataManager._key)
+    with Pool() as p:
+        p.starmap(myDataManager._compute_all_key, [(column_index, _shared_var, lock) for column_index in range(16)])
     myDataManager._timer._timerStop()
     myDataManager._timer._displayExecutionTime()
-    print(myDataManager._key)
+    _string = ""
+    for i in range(16):
+        _string =_string+str(_shared_var[i])+" "
+    print(_string)
