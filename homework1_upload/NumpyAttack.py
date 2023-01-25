@@ -110,7 +110,7 @@ class DataManager:
 
 
 if __name__ == '__main__':
-    myDataManager = DataManager('timing_noisy_test.csv')
+    myDataManager = DataManager('timing_noisy.csv')
     # myDataManager._attack_loop()
-    # myDataManager._attack_thread()
-    myDataManager._AESEncrypt()
+    myDataManager._attack_thread()
+    # myDataManager._AESEncrypt()
