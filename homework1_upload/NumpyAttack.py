@@ -110,12 +110,12 @@ class DataManager:
         print(_string)
 
     def _get_sample_plot(self):
-        sample_size = 10000
-        sample_size_increase_count = 12
+        sample_size = 20000
+        sample_size_increase_count = 6
         delta_list = []
         for i in range(sample_size_increase_count):
             value_from_plain_and_key = self.__data[0:sample_size*(i+1), 0:1] ^ self.__256bitKey
-            time_data = self.__time_data[0:sample_size*(i+1),]
+            time_data = self.__time_data[0:sample_size*(i+1), ]
             _MSB_matrix = np.take(self._sbox_table, value_from_plain_and_key) & 0x80
             _MSB_matrix_0 = np.where(_MSB_matrix == 0, 1, 0)
             count_0_group_index = np.sum(_MSB_matrix_0, axis=0)
@@ -128,18 +128,14 @@ class DataManager:
             count_1_group_time = _MSB_matrix_1*time_data
             count_1_group_255_time = np.sum(count_1_group_time, axis=0)
             ave1 = count_1_group_255_time/count_1_group_index
-            delta =  ave1 - ave0
+            delta = ave1 - ave0
             delta_list.append(delta)
-            print(np.argmax(delta))
-        fig, ax = plt.subplots(figsize=(8, 4))
-        gradient = 0.7/len(delta_list)
-        for index, _delta in enumerate(delta_list):
-            if (1-gradient*index) < 0:
-                ax.plot(_delta, 'black', color=(0, 0, 0))
-            else:
-                ax.plot(_delta, 'black', color=(0.7-gradient*index, 0.7-gradient*index, 0.7-gradient*index))
-        ax.set_xlabel('key candidate')
-        ax.set_ylabel('delta time')
+        fig, ax = plt.subplots(figsize=(8, 4), nrows=6, ncols=1)
+
+        for i in range(sample_size_increase_count):
+            ax[i].plot(delta_list[i], 'black', color=(0, 0, 0))
+            ax[i].set_ylabel('delta time')
+            ax[i].set_ylabel('candidate key')
         plt.show()
 
 
