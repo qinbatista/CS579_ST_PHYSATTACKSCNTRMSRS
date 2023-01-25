@@ -82,9 +82,9 @@ class AESEncrypt:
         #     print(f"++++[{i}][{0}]:{hex(_round_key[i][0])}")
         my_result = _16bit_block_text[:, 0:1] ^ _round_key[:, 0:1]
         result = _16bit_block_text ^ _round_key
-        # for i in range(4):
-        #     for j in range(4):
-        #         print(f"[{i}][{j}]:{hex(result[i][j])}")
+        for i in range(4):
+            for j in range(4):
+                print(f"[{i}][{j}]:{hex(result[i][j])}")
         return result
 
 
@@ -107,5 +107,5 @@ if __name__ == '__main__':
     # 4:mix column
     _mixed_column = myAE._mix_column(_shifted_raw)
     # 5:add round key
-    _AddRoundKey = myAE._add_round_key(_mixed_column, around_key)
+    _AddRoundKey = myAE._add_round_key(_sub_bytes, around_key)
     print(_AddRoundKey)

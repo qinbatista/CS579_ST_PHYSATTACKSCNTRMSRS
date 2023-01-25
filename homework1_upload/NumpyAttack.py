@@ -1,7 +1,6 @@
 import numpy as np
 from multiprocessing import Pool, Manager
 from TimerTool import TimerTool
-from numba import jit, njit, prange
 
 
 class DataManager:
@@ -11,7 +10,7 @@ class DataManager:
         self.__path = path
         self.__time_data = None
         self.__256bitKey = np.arange(256).reshape(1, 256)
-        self.__sbox_table = np.array([
+        self._sbox_table = np.array([
             0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
             0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, 0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0,
             0xB7, 0xFD, 0x93, 0x26, 0x36, 0x3F, 0xF7, 0xCC, 0x34, 0xA5, 0xE5, 0xF1, 0x71, 0xD8, 0x31, 0x15,
@@ -36,12 +35,21 @@ class DataManager:
         self.__time_data = self.__data[:, 16:17]
         self.__data = self.__data[:, 0:16]
 
-    def _compute_all_key(self, column_index, shared_var, lock):
-        # generate 0 raw's plain text XOR key
-        # first 100000 value
+    def _compute_all_key_thread(self, column_index, shared_var, lock):
+        value = self.__numpy_compute(column_index)
+        lock.acquire()
+        shared_var[column_index] = np.argmax(value)
+        lock.release()
+        pass
+
+    def _compute_all_key_loop(self, column_index):
+        value = self.__numpy_compute(column_index)
+        self._key[column_index] = np.argmax(value)
+
+    def __numpy_compute(self, column_index):
         value_from_plain_and_key = self.__data[:, column_index:column_index+1] ^ self.__256bitKey
 
-        _MSB_matrix = np.take(self.__sbox_table, value_from_plain_and_key) & 0x80
+        _MSB_matrix = np.take(self._sbox_table, value_from_plain_and_key) & 0x80
         _MSB_matrix_0 = np.where(_MSB_matrix == 0, 1, 0)
         count_0_group_index = np.sum(_MSB_matrix_0, axis=0)
         count_0_group_time = _MSB_matrix_0*self.__time_data
@@ -53,29 +61,56 @@ class DataManager:
         count_1_group_time = _MSB_matrix_1*self.__time_data
         count_1_group_255_time = np.sum(count_1_group_time, axis=0)
         ave1 = count_1_group_255_time/count_1_group_index
-        value = ave1 - ave0
-        # self._key[column_index] = np.argmax(value)
-        lock.acquire()
-        shared_var[column_index] = np.argmax(value)
-        lock.release()
-        pass
+        return ave1 - ave0
+
+    def _XOR(self, a, b):
+        return a ^ b
+
+    def _attack_loop(self):
+        myDataManager._timer._timerStart()
+        for i in range(16):
+            myDataManager._compute_all_key_loop(i)
+        myDataManager._timer._timerStop()
+        myDataManager._timer._displayExecutionTime()
+        print(self._key)
+
+    def _attack_thread(self):
+        manager = Manager()
+        _shared_var = manager.dict()
+        lock = manager.Lock()
+        myDataManager._timer._timerStart()
+        with Pool() as p:
+            p.starmap(myDataManager._compute_all_key_thread, [(column_index, _shared_var, lock) for column_index in range(16)])
+        myDataManager._timer._timerStop()
+        myDataManager._timer._displayExecutionTime()
+        _string = ""
+        for i in range(16):
+            _string = _string+str(_shared_var[i])+" "
+        print(_string)
+
+    def _AESEncrypt(self):
+        plainText = np.array([0x00, 0x00, 0x00, 0x00,
+                              0x00, 0x00, 0xC1, 0xA5,
+                              0x51, 0xF1, 0xED, 0xC0,
+                              0xFF, 0xEE, 0xB4, 0xB3])
+        key = np.array([0x00, 0x00, 0x01, 0x02,
+                        0x03, 0x04, 0xDE, 0xCA,
+                        0xF0, 0xC0, 0xFF, 0xEE,
+                        0x00, 0x00, 0x00, 0x00])
+        result = myDataManager._XOR(plainText, key)
+        _string = ""
+        for i in range(12):
+            _string = _string+str(hex(result[i]))+" "
+        print(_string)
+        _string = ""
+        result = np.take(myDataManager._sbox_table, result)
+        for i in range(12):
+            _string = _string+str(hex(result[i]))+" "
+        print(_string)
 
 
 if __name__ == '__main__':
-    # myDataManager = DataManager('timing_noisy.csv')
     myDataManager = DataManager('timing_noisy_test.csv')
-    manager = Manager()
-    _shared_var = manager.dict()
-    lock = manager.Lock()
-    myDataManager._timer._timerStart()
-    # for i in range(16):
-    #     myDataManager._compute_all_key(i)
-    # print(myDataManager._key)
-    with Pool() as p:
-        p.starmap(myDataManager._compute_all_key, [(column_index, _shared_var, lock) for column_index in range(16)])
-    myDataManager._timer._timerStop()
-    myDataManager._timer._displayExecutionTime()
-    _string = ""
-    for i in range(16):
-        _string =_string+str(_shared_var[i])+" "
-    print(_string)
+    # myDataManager._attack_loop()
+    # myDataManager._attack_thread()
+    myDataManager._AESEncrypt()

@@ -64,6 +64,10 @@ class PasswordAttack:
         # print("["+str(position)+"]"+str(shared_var))
         # print("["+str(position)+"]"+str(self._key[position]))
 
+    def _XOR(self, a, b):
+        return a ^ b
+	def _get_value_from_LUT(self, value):
+		return self.__sbox_table[value]
 
 if __name__ == '__main__':
     # myDataManager = PasswordAttack('timing_noisy.csv')
@@ -74,5 +78,14 @@ if __name__ == '__main__':
     myDataManager._timer._displayExecutionTime()
     _string = ""
     for i in range(16):
-        _string =_string+str(myDataManager._shared_var[i])+" "
+        _string = _string+str(myDataManager._shared_var[i])+" "
     print(_string)
+    plainText = np.array[[0x00, 0x00, 0x00, 0x00,
+                          0x00, 0x00, 0xC1, 0xA5,
+                          0x51, 0xF1, 0xED, 0xC0,
+                          0xFF, 0xEE, 0xB4, 0xB3]]
+    key = np.array[[0x00, 0x00, 0x01, 0x02,
+                    0x03, 0x04, 0xDE, 0xCA,
+                    0xF0, 0xC0, 0xFF, 0xEE,
+                    0x00, 0x00, 0x00, 0x00]]
+    myDataManager._XOR(np.array[[0x00, ]], np.array[[]])
