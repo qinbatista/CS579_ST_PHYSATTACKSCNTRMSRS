@@ -110,38 +110,43 @@ class DataManager:
         print(_string)
 
     def _get_sample_plot(self):
-        sample_size = 20000
-        sample_size_increase_count = 6
-        delta_list = []
-        for i in range(sample_size_increase_count):
-            value_from_plain_and_key = self.__data[0:sample_size*(i+1), 0:1] ^ self.__256bitKey
-            time_data = self.__time_data[0:sample_size*(i+1), ]
-            _MSB_matrix = np.take(self._sbox_table, value_from_plain_and_key) & 0x80
-            _MSB_matrix_0 = np.where(_MSB_matrix == 0, 1, 0)
-            count_0_group_index = np.sum(_MSB_matrix_0, axis=0)
-            count_0_group_time = _MSB_matrix_0*time_data
-            count_0_group_255_time = np.sum(count_0_group_time, axis=0)
-            ave0 = count_0_group_255_time/count_0_group_index
+        sample_size = 10000
+        sample_size_increase_count = 15
+        column_index = 16
+        key_list = []
+        for j in range(column_index):
+            delta_list = []
+            for i in range(sample_size_increase_count):
+                value_from_plain_and_key = self.__data[0:sample_size*(i+1), j:j+1] ^ self.__256bitKey
+                time_data = self.__time_data[0:sample_size*(i+1), ]
+                _MSB_matrix = np.take(self._sbox_table, value_from_plain_and_key) & 0x80
+                _MSB_matrix_0 = np.where(_MSB_matrix == 0, 1, 0)
+                count_0_group_index = np.sum(_MSB_matrix_0, axis=0)
+                count_0_group_time = _MSB_matrix_0*time_data
+                count_0_group_255_time = np.sum(count_0_group_time, axis=0)
+                ave0 = count_0_group_255_time/count_0_group_index
 
-            _MSB_matrix_1 = np.where(_MSB_matrix == 128, 1, 0)
-            count_1_group_index = np.sum(_MSB_matrix_1, axis=0)
-            count_1_group_time = _MSB_matrix_1*time_data
-            count_1_group_255_time = np.sum(count_1_group_time, axis=0)
-            ave1 = count_1_group_255_time/count_1_group_index
-            delta = ave1 - ave0
-            delta_list.append(delta)
-        fig, ax = plt.subplots(figsize=(8, 4), nrows=6, ncols=1)
-
-        for i in range(sample_size_increase_count):
-            ax[i].plot(delta_list[i], 'black', color=(0, 0, 0))
-            ax[i].set_ylabel('delta time')
-            ax[i].set_ylabel('can')
+                _MSB_matrix_1 = np.where(_MSB_matrix == 128, 1, 0)
+                count_1_group_index = np.sum(_MSB_matrix_1, axis=0)
+                count_1_group_time = _MSB_matrix_1*time_data
+                count_1_group_255_time = np.sum(count_1_group_time, axis=0)
+                ave1 = count_1_group_255_time/count_1_group_index
+                y_key = np.argmax(ave1 - ave0)
+                delta_list.append(y_key)
+            key_list.append(delta_list)
+        fig, ax = plt.subplots(figsize=(8, 4))
+        for index,key in enumerate(key_list):
+            line, = ax.plot(key, 'black', color=plt.cm.rainbow(index/16))
+            line.set_label(str(index))
+            ax.legend()
+        ax.set_xticks([index for index in range(sample_size_increase_count)])
+        ax.set_xticklabels([(index+1)*sample_size for index in range(sample_size_increase_count)])
         plt.show()
 
 
 if __name__ == '__main__':
-    myDataManager = DataManager('timing_noisy.csv')
-    myDataManager._attack_loop()
+    myDataManager = DataManager('timing_noisy_test.csv')
+    # myDataManager._attacyk_loop()
     # myDataManager._attack_thread()
     # myDataManager._AESEncrypt()
-    # myDataManager._get_sample_plot()
+    myDataManager._get_sample_plot()
