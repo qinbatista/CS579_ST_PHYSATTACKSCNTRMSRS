@@ -5,37 +5,43 @@ from matplotlib import pyplot as plt
 
 
 class DataManager:
-    def __init__(self, path):
+    def __init__(self, measurement_data_2023_uint8_path, traces_10000x50_int8_path, plaintext_10000x16_uint8):
         self._timer = TimerTool()
-        self._data = np.memmap(path, dtype='uint8', mode='r')
-        self.__n = self._data.shape[0]
+        self._data_measurement = np.memmap(measurement_data_2023_uint8_path, dtype='uint8', mode='r')
+        self.__n_measurement = self._data_measurement.shape[0]
+
+        self._data_trace = np.memmap(traces_10000x50_int8_path, dtype='int8', mode='r').reshape(10000, 50)
+        self.__n_trace = self._data_trace.shape
+
+        self._data_plaintext = np.memmap(plaintext_10000x16_uint8, dtype='uint8', mode='r').reshape(10000, 16)
+        self.__n_plaintext = self._data_plaintext.shape
         pass
 
     def _naive_approach_mean(self):
-        sum = self._data.sum()
-        mean = sum / self._data.shape[0]
+        sum = self._data_measurement.sum()
+        mean = sum / self._data_measurement.shape[0]
         print(f"[Naive Approach]Mean:		{mean}")
         return mean
 
     def _naive_approach_variance(self):
-        sum = self._data.sum()
-        mean = sum / self._data.shape[0]
-        squared_differences = (self._data-mean)**2
-        variance = squared_differences.sum() / self._data.shape[0]
+        sum = self._data_measurement.sum()
+        mean = sum / self._data_measurement.shape[0]
+        squared_differences = (self._data_measurement-mean)**2
+        variance = squared_differences.sum() / self._data_measurement.shape[0]
         print(f"[Naive Approach]Variance:	{variance}")
         return variance
 
     def _welford_algorithm_mean(self, mean, data):
-        self.__n += 1
-        mean += (data - mean) / self.__n
+        self.__n_measurement += 1
+        mean += (data - mean) / self.__n_measurement
         print(f"[Welford Algorithm]Mean:	{mean}")
         return mean
 
     def _welford_algorithm_variance(self, mean, variance, data):
-        self.__n += 1
+        self.__n_measurement += 1
         delta = data - mean
-        mean += delta / self.__n
-        variance += (delta*(data - mean)) / (self.__n-1)
+        mean += delta / self.__n_measurement
+        variance += (delta*(data - mean)) / (self.__n_measurement-1)
         print(f"[Welford Algorithm]Variance:	{variance}")
         return variance
 
@@ -70,17 +76,32 @@ class DataManager:
         print(f"[Histogram Method]Histogram Mean:	{mean}")
         print(f"[Histogram Method]Histogram Variance:	{variance}")
 
+    def _numerator_of_traces(self):
+        mean_trance = np.mean(self._data_trace)
+        signal = self._data_trace - mean_trance
+        signal = np.sum(signal,axis=0)/self.__n_trace[0]
+        plt.plot(signal)
+        return signal
+
+    def _denominator_of_traces(self):
+        noise = np.std(self._data_trace, axis=0)
+        plt.plot(noise)
+        return noise
 
 if __name__ == '__main__':
-    myDataManager = DataManager('measurement_data_2023_uint8.bin')
+    myDataManager = DataManager('measurement_data_2023_uint8.bin', 'traces_10000x50_int8.bin', 'plaintext_10000x16_uint8.bin')
     # print("----------naive approach-----------")
     # mean = myDataManager._naive_approach_mean()
     # variance = myDataManager._naive_approach_variance()
     # print("----------welford algorithm-----------")
     # new_mean = myDataManager._welford_algorithm_mean(mean, 122)
     # new_variance = myDataManager._welford_algorithm_variance(new_mean, variance, 122)
-    a = myDataManager._data[:100000]
-    print("----------One Pass-----------")
-    myDataManager._one_pass(a)
-    print("----------Histogram Method-----------")
-    myDataManager._histogram_method(a)
+    a = myDataManager._data_measurement[:100000]
+    # print("----------One Pass-----------")
+    # myDataManager._one_pass(a)
+    # print("----------Histogram Method-----------")
+    # myDataManager._histogram_method(a)
+    signal = myDataManager._numerator_of_traces()
+    noise = myDataManager._denominator_of_traces()
+    value = signal/noise
+    pass
