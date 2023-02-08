@@ -108,31 +108,32 @@ class DataManager:
         return noise
 
     def _SNR(self):
-        colum = 0
-        candidate_keys_values = self._data_plaintext[:, colum:colum+1] ^ self.__256bitKey
-        SBOX_matrix = np.take(self._sbox_table, candidate_keys_values)
+        key = []
+        correlation = []
+        for column in range(0, 16):
+            candidate_keys_values = self._data_plaintext[:, column:column+1] ^ self.__256bitKey
+            SBOX_matrix = np.take(self._sbox_table, candidate_keys_values)
 
-        # power Model
+            # power Model
 
-        trace_column_mean = np.mean(self._data_trace, axis=0).reshape(1, self.__n_trace[1])
-        t_dj = self._data_trace-trace_column_mean  # t_dj- mean_t
-        keys_column_mean = np.mean(SBOX_matrix, axis=0)
-        h_dj = SBOX_matrix-keys_column_mean  # h_dj- mean_h
+            trace_column_mean = np.mean(self._data_trace, axis=0).reshape(1, self.__n_trace[1])
+            t_dj = self._data_trace-trace_column_mean  # t_dj- mean_t
+            keys_column_mean = np.mean(SBOX_matrix, axis=0)
+            h_dj = SBOX_matrix-keys_column_mean  # h_dj- mean_h
 
-        r_ij = np.zeros((256, 50))
-        for trace_id in range(0, 1):
-            for key_index in range(0, 255):
-                up_value = h_dj[:, key_index:key_index+1]*t_dj[:, trace_id:trace_id+1]
-                aa = h_dj[:, key_index:key_index+1]
-                value1 = h_dj[:, key_index:key_index+1]**2
-                value2 = t_dj[:, trace_id:trace_id+1]**2
+            r_ij = np.zeros((50, 256))
+            for trace_id in range(0, 50):
+                # for key_index in range(0, 255):
+                up_value = np.sum(h_dj[:, :]*t_dj[:, trace_id:trace_id+1],axis=0)
+                value1 = np.sum(h_dj[:, :]**2,axis=0)
+                value2 = np.sum(t_dj[:, trace_id:trace_id+1]**2)
                 value3 = np.sqrt(value1*value2)
                 value = up_value / value3
-                r_ij[key_index, trace_id] = value
-                pass
-        flat_index = np.argmax(r_ij, axis=None)
-        index = np.unravel_index(flat_index, r_ij.shape)
-        pass
+                r_ij[trace_id] = value
+            correlation.append(np.amax(r_ij))
+            flat_index = np.argmax(r_ij, axis=None)
+            index = np.unravel_index(flat_index, r_ij.shape)[1]
+            key.append(index)
 
 
 if __name__ == '__main__':
@@ -148,7 +149,7 @@ if __name__ == '__main__':
     # myDataManager._one_pass(a)
     # print("----------Histogram Method-----------")
     # myDataManager._histogram_method(a)
-    signal = myDataManager._signal()
+    # signal = myDataManager._signal()
     # noise = myDataManager._noise()
     myDataManager._SNR()
     pass
