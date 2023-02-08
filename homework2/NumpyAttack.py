@@ -4,6 +4,7 @@ from TimerTool import TimerTool
 from matplotlib import pyplot as plt
 import math
 
+
 class DataManager:
     def __init__(self, measurement_data_2023_uint8_path, traces_10000x50_int8_path, plaintext_10000x16_uint8):
         self._timer = TimerTool()
@@ -94,20 +95,42 @@ class DataManager:
         print(f"[Histogram Method]Histogram Variance:	{variance}, correct value:{data.var()}")
 
     def _signal(self):
-        mean_trance = np.mean(self._data_trace)
-        signal = self._data_trace - mean_trance
-        signal = np.sum(signal, axis=0)/self.__n_trace[0]
+        signal = np.zeros((0, 256))
+        for key in range(0,255):
+            plainText = np.where(self._data_plaintext == key, 1, 0)#extract all plain text equal n, n is 1,2,3,...,255
+            for plain_text_index in range(0, 16):#each column of plain text with n go through all trace
+                value = 0
+                for trace_index in range(0, 50):
+                    count = np.count_nonzero(plainText[:, plain_text_index:plain_text_index+1])#count how many n in the column of trace m
+                    value = value+np.sum(plainText[:, plain_text_index:plain_text_index+1] * self._data_trace[:, trace_index:trace_index+1])/count #count the mean of trace m
+                value = value/50 # got all m trace, but it summed 50 trace, so divide by 50
+            signal = np.append(signal, value)
         fig, ax = plt.subplots()
         ax.plot(signal)
         return signal
 
     def _noise(self):
-        noise = np.std(self._data_trace, axis=0)
+        signal = np.zeros((0, 256))
+        for key in range(0,255):
+            plainText = np.where(self._data_plaintext == key, 1, 0)#extract all plain text equal n, n is 1,2,3,...,255
+            for plain_text_index in range(0, 16):#each column of plain text with n go through all trace
+                value = 0
+                for trace_index in range(0, 50):
+                    count = np.count_nonzero(plainText[:, plain_text_index:plain_text_index+1])#count how many n in the column of trace m
+                    value = value+np.sum(plainText[:, plain_text_index:plain_text_index+1] * self._data_trace[:, trace_index:trace_index+1])/count #count the mean of trace m
+                value = value/50 # got all m trace, but it summed 50 trace, so divide by 50
+            signal = np.append(signal, value)
+        noise = (signal - np.mean(signal))**2
         fig, ax = plt.subplots()
         ax.plot(noise)
         return noise
 
     def _SNR(self):
+        value = self._signal()/self._noise()
+        fig, ax = plt.subplots()
+        ax.plot(value)
+
+    def _CPA(self):
         key = []
         correlation = []
         for column in range(0, 16):
@@ -124,8 +147,8 @@ class DataManager:
             r_ij = np.zeros((50, 256))
             for trace_id in range(0, 50):
                 # for key_index in range(0, 255):
-                up_value = np.sum(h_dj[:, :]*t_dj[:, trace_id:trace_id+1],axis=0)
-                value1 = np.sum(h_dj[:, :]**2,axis=0)
+                up_value = np.sum(h_dj[:, :]*t_dj[:, trace_id:trace_id+1], axis=0)
+                value1 = np.sum(h_dj[:, :]**2, axis=0)
                 value2 = np.sum(t_dj[:, trace_id:trace_id+1]**2)
                 value3 = np.sqrt(value1*value2)
                 value = up_value / value3
@@ -134,6 +157,8 @@ class DataManager:
             flat_index = np.argmax(r_ij, axis=None)
             index = np.unravel_index(flat_index, r_ij.shape)[1]
             key.append(index)
+        print(f"Key: {key}")
+        print(f"Correlation: {correlation}")
 
 
 if __name__ == '__main__':
@@ -149,7 +174,9 @@ if __name__ == '__main__':
     # myDataManager._one_pass(a)
     # print("----------Histogram Method-----------")
     # myDataManager._histogram_method(a)
-    # signal = myDataManager._signal()
-    # noise = myDataManager._noise()
+    # myDataManager._signal()
+    # myDataManager._noise()
     myDataManager._SNR()
+    pass
+    # myDataManager._SNR()
     pass
