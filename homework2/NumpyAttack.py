@@ -2,7 +2,7 @@ import numpy as np
 from multiprocessing import Pool, Manager
 from TimerTool import TimerTool
 from matplotlib import pyplot as plt
-
+import math
 
 class DataManager:
     def __init__(self, measurement_data_2023_uint8_path, traces_10000x50_int8_path, plaintext_10000x16_uint8):
@@ -110,12 +110,28 @@ class DataManager:
     def _SNR(self):
         colum = 0
         candidate_keys_values = self._data_plaintext[:, colum:colum+1] ^ self.__256bitKey
-        _SBOX_matrix = np.take(self._sbox_table, candidate_keys_values)
+        SBOX_matrix = np.take(self._sbox_table, candidate_keys_values)
 
         # power Model
-        power_column = 0
-        trace_mean = np.sum(self._data_trace[:, power_column:power_column+1])/self.__n_trace[0]
-        up = _SBOX_matrix[:, power_column:power_column+1]*self._data_trace[:, power_column:power_column+1]
+
+        trace_column_mean = np.mean(self._data_trace, axis=0).reshape(1, self.__n_trace[1])
+        t_dj = self._data_trace-trace_column_mean  # t_dj- mean_t
+        keys_column_mean = np.mean(SBOX_matrix, axis=0)
+        h_dj = SBOX_matrix-keys_column_mean  # h_dj- mean_h
+
+        r_ij = np.zeros((256, 50))
+        for trace_id in range(0, 1):
+            for key_index in range(0, 255):
+                up_value = h_dj[:, key_index:key_index+1]*t_dj[:, trace_id:trace_id+1]
+                aa = h_dj[:, key_index:key_index+1]
+                value1 = h_dj[:, key_index:key_index+1]**2
+                value2 = t_dj[:, trace_id:trace_id+1]**2
+                value3 = np.sqrt(value1*value2)
+                value = up_value / value3
+                r_ij[key_index, trace_id] = value
+                pass
+        flat_index = np.argmax(r_ij, axis=None)
+        index = np.unravel_index(flat_index, r_ij.shape)
         pass
 
 
@@ -132,7 +148,7 @@ if __name__ == '__main__':
     # myDataManager._one_pass(a)
     # print("----------Histogram Method-----------")
     # myDataManager._histogram_method(a)
-    # signal = myDataManager._signal()
+    signal = myDataManager._signal()
     # noise = myDataManager._noise()
     myDataManager._SNR()
     pass
