@@ -176,7 +176,7 @@ if __name__ == '__main__':
     # myDataManager._histogram_method(a)
     # myDataManager._signal()
     # myDataManager._noise()
-    myDataManager._SNR()
-    pass
     # myDataManager._SNR()
+    pass
+    myDataManager._CPA()
     pass
