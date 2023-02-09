@@ -9,6 +9,7 @@ class DataManager:
     def __init__(self, measurement_data_2023_uint8_path, traces_10000x50_int8_path, plaintext_10000x16_uint8):
         self._timer = TimerTool()
         self._data_measurement = np.memmap(measurement_data_2023_uint8_path, dtype='uint8', mode='r')
+        self._data_measurement = self._data_measurement[:100000]  # Test part
         self.__n_measurement = self._data_measurement.shape[0]
         self.__256bitKey = np.arange(256).reshape(1, 256)
         self._sbox_table = np.array([
@@ -37,73 +38,101 @@ class DataManager:
         pass
 
     def _naive_approach_mean(self):
-        sum = self._data_measurement.sum()
+        self._timer._start()
+        squared_differences = 0
+        sum = 0
+        for i in range(self._data_measurement.shape[0]):
+            sum += self._data_measurement[i]
         mean = sum / self._data_measurement.shape[0]
         print(f"[Naive Approach]Mean:		{mean}, correct value:{self._data_measurement.mean()}")
-        return mean
 
-    def _naive_approach_variance(self):
-        sum = self._data_measurement.sum()
-        mean = sum / self._data_measurement.shape[0]
-        squared_differences = (self._data_measurement-mean)**2
-        variance = squared_differences.sum() / self._data_measurement.shape[0]
+        for i in range(self._data_measurement.shape[0]):
+            squared_differences = squared_differences + (self._data_measurement[i]-mean)**2
+        variance = squared_differences / self._data_measurement.shape[0]
         print(f"[Naive Approach]Variance:	{variance}, correct value:{self._data_measurement.var()}")
-        return variance
-
-    def _welford_algorithm_mean(self, mean, data):
-        self.__n_measurement += 1
-        mean += (data - mean) / self.__n_measurement
-        print(f"[Welford Algorithm]Mean:	{mean}, added new data:{data}")
+        self._timer._stop()
+        self._timer._display()
         return mean
 
-    def _welford_algorithm_variance(self, mean, variance, data):
-        self.__n_measurement += 1
-        delta = data - mean
-        mean += delta / self.__n_measurement
-        variance += (delta*(data - mean)) / (self.__n_measurement-1)
-        print(f"[Welford Algorithm]Variance:	{variance}, added new data:{data}")
-        return variance
+    def _welford_algorithm(self):
+        self._timer._start()
+        aggregate = (0, 0, 0)
+        for x in range(self._data_measurement.shape[0]):
+            aggregate = self.update(aggregate, self._data_measurement[x])
+        mean, variance, sampleVariance = self.finalize(aggregate)
+        print(f"[Naive Approach]Variance:	{variance}, correct value:{self._data_measurement.var()}")
+        print(f"[Naive Approach]Mean:		{mean}, correct value:{self._data_measurement.mean()}")
+        self._timer._stop()
+        self._timer._display()
 
-    def _one_pass(self, data_list):
+    def update(self, existingAggregate, newValue):
+        (count, mean, M2) = existingAggregate
+        count += 1
+        delta = newValue - mean
+        mean += delta / count
+        delta2 = newValue - mean
+        M2 += delta * delta2
+        return (count, mean, M2)
+
+    # Retrieve the mean, variance and sample variance from an aggregate
+    def finalize(self, existingAggregate):
+        (count, mean, M2) = existingAggregate
+        if count < 2:
+            return float("nan")
+        else:
+            (mean, variance, sampleVariance) = (mean, M2 / count, M2 / (count - 1))
+            return (mean, variance, sampleVariance)
+
+    def _one_pass(self):
         self._timer._start()
         mean = 0
         variance = 0
         mean_variance = 0
         M2 = 0
         n = 0
-        for data in data_list:
+        for i in range(self._data_measurement.shape[0]):
             n += 1
-            mean += (data - mean) / n
+            mean += (self._data_measurement[i] - mean) / n
 
-            delta = (data - mean_variance)
+            delta = (self._data_measurement[i] - mean_variance)
             mean_variance += delta / n
-            M2 += delta * (data - mean_variance)
+            M2 += delta * (self._data_measurement[i] - mean_variance)
         variance = M2 / (n-1)
+        print(f"[One Pass]Mean:		{mean}, 	correct value:{self._data_measurement.mean()}")
+        print(f"[One Pass]Variance:	{variance},	correct value:{self._data_measurement.var()}")
         self._timer._stop()
         self._timer._display()
-        print(f"[One Pass]Mean:			{mean}, correct value:{data_list.mean()}")
-        print(f"[One Pass]Variance:		{variance},correct value:{data_list.var()}")
 
-    def _histogram_method(self, data):
+    def _histogram_method(self):
         self._timer._start()
-        hist, bin_edges = np.histogram(data, bins=10)
-        mean = np.sum(hist * bin_edges[:-1]) / len(data)
-        variance = np.sum((bin_edges[:-1] - mean) ** 2 * hist) / len(data)
+        histogram = np.zeros((256))
+        for i in range(self._data_measurement.shape[0]):
+            histogram[self._data_measurement[i]] += 1
+        sum = 0
+        for i in range(histogram.shape[0]):
+            sum = sum + histogram[i] * i
+        mean = sum / self._data_measurement.shape[0]
+
+        squared_differences = 0
+        for i in range(histogram.shape[0]):
+            if histogram[i] != 0.0:
+                squared_differences = squared_differences + ((i-mean)**2)*histogram[i]
+        variance = squared_differences / self._data_measurement.shape[0]
         self._timer._stop()
         self._timer._display()
-        print(f"[Histogram Method]Histogram Mean:	{mean}, correct value:{data.mean()}")
-        print(f"[Histogram Method]Histogram Variance:	{variance}, correct value:{data.var()}")
+        print(f"[Histogram Method]Histogram Mean:		{mean},	 correct value:{self._data_measurement.mean()}")
+        print(f"[Histogram Method]Histogram Variance:	{variance},	 correct value:{self._data_measurement.var()}")
 
     def _signal(self):
         signal = np.zeros((0, 256))
-        for key in range(0,255):
-            plainText = np.where(self._data_plaintext == key, 1, 0)#extract all plain text equal n, n is 1,2,3,...,255
-            for plain_text_index in range(0, 16):#each column of plain text with n go through all trace
+        for key in range(0, 255):
+            plainText = np.where(self._data_plaintext == key, 1, 0)  # extract all plain text equal n, n is 1,2,3,...,255
+            for plain_text_index in range(0, 16):  # each column of plain text with n go through all trace
                 value = 0
                 for trace_index in range(0, 50):
-                    count = np.count_nonzero(plainText[:, plain_text_index:plain_text_index+1])#count how many n in the column of trace m
-                    value = value+np.sum(plainText[:, plain_text_index:plain_text_index+1] * self._data_trace[:, trace_index:trace_index+1])/count #count the mean of trace m
-                value = value/50 # got all m trace, but it summed 50 trace, so divide by 50
+                    count = np.count_nonzero(plainText[:, plain_text_index:plain_text_index+1])  # count how many n in the column of trace m
+                    value = value+np.sum(plainText[:, plain_text_index:plain_text_index+1] * self._data_trace[:, trace_index:trace_index+1])/count  # count the mean of trace m
+                value = value/50  # got all m trace, but it summed 50 trace, so divide by 50
             signal = np.append(signal, value)
         fig, ax = plt.subplots()
         ax.plot(signal)
@@ -111,15 +140,14 @@ class DataManager:
 
     def _noise(self):
         signal = np.zeros((0, 256))
-        for key in range(0,255):
-            plainText = np.where(self._data_plaintext == key, 1, 0)#extract all plain text equal n, n is 1,2,3,...,255
-            for plain_text_index in range(0, 16):#each column of plain text with n go through all trace
-                value = 0
-                for trace_index in range(0, 50):
-                    count = np.count_nonzero(plainText[:, plain_text_index:plain_text_index+1])#count how many n in the column of trace m
-                    value = value+np.sum(plainText[:, plain_text_index:plain_text_index+1] * self._data_trace[:, trace_index:trace_index+1])/count #count the mean of trace m
-                value = value/50 # got all m trace, but it summed 50 trace, so divide by 50
-            signal = np.append(signal, value)
+        plainText = np.where(self._data_plaintext == key, 1, 0)  # extract all plain text equal n, n is 1,2,3,...,255
+        for key in range(0, 255):
+            value = 0
+            for trace_index in range(0, 50):
+                count = np.count_nonzero(plainText[:, trace_index:trace_index+1])  # count how many n in the column of trace m
+                value = value+np.sum(plainText[:, trace_index:trace_index+1] * self._data_trace[:, trace_index:trace_index+1])/count  # count the mean of trace m
+            value = value/50  # got all m trace, but it summed 50 trace, so divide by 50
+        signal = np.append(signal, value)
         noise = (signal - np.mean(signal))**2
         fig, ax = plt.subplots()
         ax.plot(noise)
@@ -163,18 +191,11 @@ class DataManager:
 
 if __name__ == '__main__':
     myDataManager = DataManager('measurement_data_2023_uint8.bin', 'traces_10000x50_int8.bin', 'plaintext_10000x16_uint8.bin')
-    # print("----------naive approach-----------")
     # mean = myDataManager._naive_approach_mean()
-    # variance = myDataManager._naive_approach_variance()
-    # print("----------welford algorithm-----------")
-    # new_mean = myDataManager._welford_algorithm_mean(mean, 122)
-    # new_variance = myDataManager._welford_algorithm_variance(variance, variance, 122)
-    # a = myDataManager._data_measurement[:100000]
-    # print("----------One Pass-----------")
-    # myDataManager._one_pass(a)
-    # print("----------Histogram Method-----------")
-    # myDataManager._histogram_method(a)
-    # myDataManager._signal()
+    # new_mean = myDataManager._welford_algorithm()
+    # myDataManager._one_pass()
+    # myDataManager._histogram_method()
+    myDataManager._signal()
     # myDataManager._noise()
     # myDataManager._SNR()
     pass
