@@ -9,7 +9,7 @@ class DataManager:
     def __init__(self, measurement_data_2023_uint8_path, traces_10000x50_int8_path, plaintext_10000x16_uint8):
         self._timer = TimerTool()
         self._data_measurement = np.memmap(measurement_data_2023_uint8_path, dtype='uint8', mode='r')
-        self._data_measurement = self._data_measurement[:100000]  # Test part
+        self._data_measurement = self._data_measurement[:]  # Test part
         self.__n_measurement = self._data_measurement.shape[0]
         self.__256bitKey = np.arange(256).reshape(1, 256)
         self._sbox_table = np.array([
@@ -60,8 +60,8 @@ class DataManager:
         for x in range(self._data_measurement.shape[0]):
             aggregate = self.update(aggregate, self._data_measurement[x])
         mean, variance, sampleVariance = self.finalize(aggregate)
-        print(f"[Naive Approach]Variance:	{variance}, correct value:{self._data_measurement.var()}")
-        print(f"[Naive Approach]Mean:		{mean}, correct value:{self._data_measurement.mean()}")
+        print(f"[Welford Approach]Variance:	{variance}, correct value:{self._data_measurement.var()}")
+        print(f"[Welford Approach]Mean:		{mean}, correct value:{self._data_measurement.mean()}")
         self._timer._stop()
         self._timer._display()
 
@@ -118,37 +118,45 @@ class DataManager:
             if histogram[i] != 0.0:
                 squared_differences = squared_differences + ((i-mean)**2)*histogram[i]
         variance = squared_differences / self._data_measurement.shape[0]
-        self._timer._stop()
-        self._timer._display()
         print(f"[Histogram Method]Histogram Mean:		{mean},	 correct value:{self._data_measurement.mean()}")
         print(f"[Histogram Method]Histogram Variance:	{variance},	 correct value:{self._data_measurement.var()}")
+        self._timer._stop()
+        self._timer._display()
 
     def _signal(self):
-        signal = np.zeros((0, 256))
-        for key in range(0, 255):
-            plainText = np.where(self._data_plaintext == key, 1, 0)  # extract all plain text equal n, n is 1,2,3,...,255
-            for plain_text_index in range(0, 16):  # each column of plain text with n go through all trace
-                value = 0
-                for trace_index in range(0, 50):
-                    count = np.count_nonzero(plainText[:, plain_text_index:plain_text_index+1])  # count how many n in the column of trace m
-                    value = value+np.sum(plainText[:, plain_text_index:plain_text_index+1] * self._data_trace[:, trace_index:trace_index+1])/count  # count the mean of trace m
-                value = value/50  # got all m trace, but it summed 50 trace, so divide by 50
-            signal = np.append(signal, value)
+        signal = np.zeros((50))
+        for trace_index in range(0, 50):
+            mean_256 = np.zeros((256))
+            for p_value in range(0, 256):  # each column of plain text with n go through all trace
+                plainText = np.where(self._data_plaintext[:, 0:1] == p_value, 1, 0)  # extract all plain text equal n, n is 1,2,3,...,255
+                all_position = np.where(plainText * self._data_trace[:, trace_index:trace_index+1]!=0)
+                all_value = np.take(self._data_trace[:, trace_index:trace_index+1], all_position[0])
+                the_mean = all_value.mean()
+                if np.isnan(the_mean):
+                    continue
+                mean_256[p_value] = all_value.mean()
+            non_zero = mean_256!=0.0
+            mean_non_zero = mean_256[non_zero]
+            signal[trace_index] = np.var(mean_non_zero)
         fig, ax = plt.subplots()
         ax.plot(signal)
         return signal
 
     def _noise(self):
-        signal = np.zeros((0, 256))
-        plainText = np.where(self._data_plaintext == key, 1, 0)  # extract all plain text equal n, n is 1,2,3,...,255
-        for key in range(0, 255):
-            value = 0
-            for trace_index in range(0, 50):
-                count = np.count_nonzero(plainText[:, trace_index:trace_index+1])  # count how many n in the column of trace m
-                value = value+np.sum(plainText[:, trace_index:trace_index+1] * self._data_trace[:, trace_index:trace_index+1])/count  # count the mean of trace m
-            value = value/50  # got all m trace, but it summed 50 trace, so divide by 50
-        signal = np.append(signal, value)
-        noise = (signal - np.mean(signal))**2
+        noise = np.zeros((50))
+        for trace_index in range(0, 50):
+            var_256 = np.zeros((256))
+            for p_value in range(0, 256):  # each column of plain text with n go through all trace
+                plainText = np.where(self._data_plaintext[:, 0:1] == p_value, 1, 0)  # extract all plain text equal n, n is 1,2,3,...,255
+                all_position = np.where(plainText * self._data_trace[:, trace_index:trace_index+1]!=0)
+                all_value = np.take(self._data_trace[:, trace_index:trace_index+1], all_position[0])
+                the_mean = all_value.var()
+                if np.isnan(the_mean):
+                    continue
+                var_256[p_value] = the_mean
+            non_zero = var_256!=0.0
+            mean_non_zero = var_256[non_zero]
+            noise[trace_index] = np.mean(mean_non_zero)
         fig, ax = plt.subplots()
         ax.plot(noise)
         return noise
@@ -185,19 +193,22 @@ class DataManager:
             flat_index = np.argmax(r_ij, axis=None)
             index = np.unravel_index(flat_index, r_ij.shape)[1]
             key.append(index)
+        correlation = np.around(correlation, decimals=4)
         print(f"Key: {key}")
-        print(f"Correlation: {correlation}")
+        string_append = ""
+        for i in range(0, 16):
+            string_append+=f"{correlation[i]} "
+        print(f"Correlation: {string_append}")
 
 
 if __name__ == '__main__':
     myDataManager = DataManager('measurement_data_2023_uint8.bin', 'traces_10000x50_int8.bin', 'plaintext_10000x16_uint8.bin')
     # mean = myDataManager._naive_approach_mean()
     # new_mean = myDataManager._welford_algorithm()
-    # myDataManager._one_pass()
+    # myDataManager._one_pass()^
     # myDataManager._histogram_method()
-    myDataManager._signal()
+    # myDataManager._signal()
     # myDataManager._noise()
     # myDataManager._SNR()
-    pass
     myDataManager._CPA()
     pass
