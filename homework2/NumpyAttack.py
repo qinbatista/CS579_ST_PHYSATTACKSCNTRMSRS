@@ -189,6 +189,9 @@ class DataManager:
                 value3 = np.sqrt(value1*value2)
                 value = up_value / value3
                 r_ij[trace_id] = value
+            # fig, ax = plt.subplots()
+            # ax.plot(r_ij)
+            # pass
             correlation.append(np.amax(r_ij))
             flat_index = np.argmax(r_ij, axis=None)
             index = np.unravel_index(flat_index, r_ij.shape)[1]
