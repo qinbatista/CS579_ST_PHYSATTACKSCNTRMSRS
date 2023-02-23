@@ -37,11 +37,10 @@ class DataManager:
         self.__n_plaintext = self._data_plaintext.shape
         pass
 
-    def _load_hw3_data(self, trace, text_in, text_out):
-        self.__hw3_trace = np.load('traces_attack_hw3/traces_attack_int16.npy')
-        self.__hw3_text_in = np.load('traces_attack_hw3/textin_attack.npy')
-        self.__hw3_text_out = np.load('traces_attack_hw3/textout_attack.npy')
-        pass
+    def _load_hw3_data(self):
+        self._hw3_trace = np.load('traces_attack_hw3/traces_attack_int16.npy')
+        self._hw3_text_in = np.load('traces_attack_hw3/textin_attack.npy')
+        self._hw3_text_out = np.load('traces_attack_hw3/textout_attack.npy')
 
     def _naive_approach_mean(self):
         self._timer._start()
@@ -209,6 +208,38 @@ class DataManager:
             string_append += f"{correlation[i]} "
         print(f"Correlation: {string_append}")
 
+    def _hw3_signal(self, data_trace, data_plainText, ):
+        signal = np.zeros((50))
+        for trace_index in range(0, 50):
+            test_plain_text_index = np.where(data_plainText[:, 0:1] == np.arange(256), 1, 0)  # extract all plain text equal n, n is 1,2,3,...,255
+            all_value = data_trace[:, trace_index:trace_index+1]*test_plain_text_index
+            the_mean_256 = all_value.sum(axis=0)/np.count_nonzero(test_plain_text_index == 1, axis=0)
+            mask = np.isnan(the_mean_256)
+            mean_non_zero = the_mean_256[~mask]
+            signal[trace_index] = np.var(mean_non_zero)
+        fig, ax = plt.subplots()
+        ax.plot(signal)
+        return signal
+
+    def _hw3_noise(self, data_plainText, data_trace):
+        noise = np.zeros((50))
+        for trace_index in range(0, 50):
+            var_256 = np.zeros((256))
+            for p_value in range(0, 256):  # each column of plain text with n go through all trace
+                plainText = np.where(data_plainText[:, 0:1] == p_value, 1, 0)  # extract all plain text equal n, n is 1,2,3,...,255
+                all_position = np.where(plainText * data_trace[:, trace_index:trace_index+1] != 0)
+                all_value = np.take(data_trace[:, trace_index:trace_index+1], all_position[0])
+                the_mean = all_value.var()
+                if np.isnan(the_mean):
+                    continue
+                var_256[p_value] = the_mean
+            non_zero = var_256 != 0.0
+            mean_non_zero = var_256[non_zero]
+            noise[trace_index] = np.mean(mean_non_zero)
+        # fig, ax = plt.subplots()
+        # ax.plot(noise)
+        return noise
+
 
 if __name__ == '__main__':
     myDataManager = DataManager('measurement_data_2023_uint8.bin', 'traces_10000x50_int8.bin', 'plaintext_10000x16_uint8.bin')
@@ -221,4 +252,9 @@ if __name__ == '__main__':
     # myDataManager._SNR()
     # myDataManager._CPA()
     myDataManager._load_hw3_data()
+    signal = myDataManager._hw3_signal(myDataManager._hw3_trace, myDataManager._hw3_text_in)
+    noise = myDataManager._hw3_noise(myDataManager._hw3_trace, myDataManager._hw3_text_in)
+    value = signal/noise
+    fig, ax = plt.subplots()
+    ax.plot(value)
     pass
