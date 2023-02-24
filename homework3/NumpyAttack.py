@@ -226,7 +226,7 @@ class DataManager:
         column_size = 50
         noise = np.zeros((column_size))
         data_trace = data_trace[:, 0:column_size]
-        for trace_index in range(0, 50):
+        for trace_index in range(0, column_size):
             test_plain_text_index = np.where(data_plainText == np.arange(256), 1, 0)
             all_value = data_trace[:, trace_index:trace_index+1]*test_plain_text_index
             count_test = data_plainText.shape[0]-np.count_nonzero(all_value == 0, axis=0)
@@ -240,30 +240,6 @@ class DataManager:
             non_zero_var = non_zero_var[~np.isnan(non_zero_var)]  # remove nan
             non_zero_var = non_zero_var[np.nonzero(non_zero_var)]  # remove zero
             noise[trace_index] = non_zero_var.mean()
-
-            # var_test = np.zeros((256))
-            # for p_value in range(0, 256):  # each column of plain text with n go through all trace
-            #     plainText = np.where(data_plainText[:, 0:1] == p_value, 1, 0)
-            #     all_position = np.where(plainText * data_trace[:, trace_index:trace_index+1] != 0)
-            #     all_value_for = np.take(data_trace[:, trace_index:trace_index+1], all_position[0])
-
-            #     sum_test2 = all_value_for.sum()
-            #     count0_test2 = np.count_nonzero(plainText * data_trace[:, trace_index:trace_index+1] == 0)
-            #     mean_test2 = sum_test2/(data_plainText.shape[0]-count0_test2)
-
-            #     test_mean = all_value_for.mean()
-            #     valuesss = np.sum((all_value_for - all_value_for.mean())**2)
-            #     var_test[p_value] = valuesss
-            #     value2 = np.sum((all_value_for - all_value_for.mean())**2)/(np.count_nonzero(plainText == 1)-1)
-
-            #     the_var = all_value_for.var()
-            #     if np.isnan(the_var):
-            #         continue
-            #     var_256[p_value] = the_var
-            # valueb = var_256[p_value].mean()
-            # non_zero = var_256 != 0.0
-            # mean_non_zero = var_256[non_zero]
-            # noise[trace_index] = np.mean(mean_non_zero)
         fig, ax = plt.subplots()
         ax.plot(noise)
         return noise
