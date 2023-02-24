@@ -208,20 +208,39 @@ class DataManager:
             string_append += f"{correlation[i]} "
         print(f"Correlation: {string_append}")
 
-    def _hw3_signal(self, data_trace, data_plainText, ):
-        signal = np.zeros((50))
-        for trace_index in range(0, 50):
-            test_plain_text_index = np.where(data_plainText[:, 0:1] == np.arange(256), 1, 0)  # extract all plain text equal n, n is 1,2,3,...,255
-            all_value = data_trace[:, trace_index:trace_index+1]*test_plain_text_index
-            the_mean_256 = all_value.sum(axis=0)/np.count_nonzero(test_plain_text_index == 1, axis=0)
-            mask = np.isnan(the_mean_256)
-            mean_non_zero = the_mean_256[~mask]
-            signal[trace_index] = np.var(mean_non_zero)
+    def _hw3_signal(self, data_trace, data_plainText):
+        column_size = 50
+        signal = np.zeros((column_size))
+
+        data_trace = data_trace[:, 0:column_size]
+
+
+        test_plain_text_index = np.where(data_plainText == np.arange(256), 1, 0)
+        data_trace_reshaped = data_trace[:, np.newaxis, :]
+        test_plain_text_index = test_plain_text_index[:, :, np.newaxis]
+        result = data_trace_reshaped * test_plain_text_index
+        the_mean_256 = result.sum(axis=0) / np.count_nonzero(test_plain_text_index, axis=0)
+        mask = np.isnan(the_mean_256)
+        mean_non_zero = the_mean_256[~mask]
+        signal = np.var(the_mean_256, axis=0)
         fig, ax = plt.subplots()
         ax.plot(signal)
+
+        # for trace_index in range(0, column_size):
+        #     test_plain_text_index = np.where(data_plainText == np.arange(256), 1, 0)
+
+
+
+        #     all_value = data_trace[:, trace_index:trace_index+1]*test_plain_text_index
+        #     the_mean_256 = all_value.sum(axis=0)/np.count_nonzero(test_plain_text_index == 1, axis=0)
+        #     mask = np.isnan(the_mean_256)
+        #     mean_non_zero = the_mean_256[~mask]
+        #     signal[trace_index] = np.var(mean_non_zero)
+        # fig, ax = plt.subplots()
+        # ax.plot(signal)
         return signal
 
-    def _hw3_noise(self, data_plainText, data_trace):
+    def _hw3_noise(self, data_trace, data_plainText):
         noise = np.zeros((50))
         for trace_index in range(0, 50):
             var_256 = np.zeros((256))
@@ -252,8 +271,8 @@ if __name__ == '__main__':
     # myDataManager._SNR()
     # myDataManager._CPA()
     myDataManager._load_hw3_data()
-    signal = myDataManager._hw3_signal(myDataManager._hw3_trace, myDataManager._hw3_text_in)
-    noise = myDataManager._hw3_noise(myDataManager._hw3_trace, myDataManager._hw3_text_in)
+    signal = myDataManager._hw3_signal(myDataManager._hw3_trace, myDataManager._hw3_text_in[:, 0:1])
+    noise = myDataManager._hw3_noise(myDataManager._hw3_trace, myDataManager._hw3_text_in[:, 0:1])
     value = signal/noise
     fig, ax = plt.subplots()
     ax.plot(value)
