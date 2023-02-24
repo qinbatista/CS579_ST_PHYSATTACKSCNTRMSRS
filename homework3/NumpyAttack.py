@@ -214,9 +214,9 @@ class DataManager:
         data_trace = data_trace[:, 0:column_size]
         test_plain_text_index = np.where(data_plainText == np.arange(256), 1, 0)
         data_trace_reshaped = data_trace[:, np.newaxis, :]
-        test_plain_text_index = test_plain_text_index[:, :, np.newaxis]
-        result = data_trace_reshaped * test_plain_text_index
-        the_mean_256 = result.mean(axis=0) / np.count_nonzero(test_plain_text_index, axis=0)
+        test_plain_text_index_reshaped = test_plain_text_index[:, :, np.newaxis]
+        result = data_trace_reshaped * test_plain_text_index_reshaped
+        the_mean_256 = result.mean(axis=0) / np.count_nonzero(test_plain_text_index_reshaped, axis=0)
         signal = np.nanvar(the_mean_256, axis=0)
         # fig, ax = plt.subplots()
         # ax.plot(signal)
