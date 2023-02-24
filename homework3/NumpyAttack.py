@@ -211,52 +211,61 @@ class DataManager:
     def _hw3_signal(self, data_trace, data_plainText):
         column_size = 50
         signal = np.zeros((column_size))
-
         data_trace = data_trace[:, 0:column_size]
-
-
         test_plain_text_index = np.where(data_plainText == np.arange(256), 1, 0)
         data_trace_reshaped = data_trace[:, np.newaxis, :]
         test_plain_text_index = test_plain_text_index[:, :, np.newaxis]
         result = data_trace_reshaped * test_plain_text_index
-        the_mean_256 = result.sum(axis=0) / np.count_nonzero(test_plain_text_index, axis=0)
-        mask = np.isnan(the_mean_256)
-        mean_non_zero = the_mean_256[~mask]
-        signal = np.var(the_mean_256, axis=0)
-        fig, ax = plt.subplots()
-        ax.plot(signal)
-
-        # for trace_index in range(0, column_size):
-        #     test_plain_text_index = np.where(data_plainText == np.arange(256), 1, 0)
-
-
-
-        #     all_value = data_trace[:, trace_index:trace_index+1]*test_plain_text_index
-        #     the_mean_256 = all_value.sum(axis=0)/np.count_nonzero(test_plain_text_index == 1, axis=0)
-        #     mask = np.isnan(the_mean_256)
-        #     mean_non_zero = the_mean_256[~mask]
-        #     signal[trace_index] = np.var(mean_non_zero)
+        the_mean_256 = result.mean(axis=0) / np.count_nonzero(test_plain_text_index, axis=0)
+        signal = np.nanvar(the_mean_256, axis=0)
         # fig, ax = plt.subplots()
         # ax.plot(signal)
         return signal
 
     def _hw3_noise(self, data_trace, data_plainText):
-        noise = np.zeros((50))
+        column_size = 50
+        noise = np.zeros((column_size))
+        data_trace = data_trace[:, 0:column_size]
         for trace_index in range(0, 50):
-            var_256 = np.zeros((256))
-            for p_value in range(0, 256):  # each column of plain text with n go through all trace
-                plainText = np.where(data_plainText[:, 0:1] == p_value, 1, 0)  # extract all plain text equal n, n is 1,2,3,...,255
-                all_position = np.where(plainText * data_trace[:, trace_index:trace_index+1] != 0)
-                all_value = np.take(data_trace[:, trace_index:trace_index+1], all_position[0])
-                the_mean = all_value.var()
-                if np.isnan(the_mean):
-                    continue
-                var_256[p_value] = the_mean
-            non_zero = var_256 != 0.0
-            mean_non_zero = var_256[non_zero]
-            noise[trace_index] = np.mean(mean_non_zero)
-        # fig, ax = plt.subplots()
-        # ax.plot(noise)
+            test_plain_text_index = np.where(data_plainText == np.arange(256), 1, 0)
+            all_value = data_trace[:, trace_index:trace_index+1]*test_plain_text_index
+            count_test = data_plainText.shape[0]-np.count_nonzero(all_value == 0, axis=0)
+            the_mean_256 = all_value.sum(axis=0)/count_test
+
+            mask = np.where(all_value == 0, 1, 0)  # find all zero and mask them as 1
+            masked_value = mask*the_mean_256  # replace all zero with mean
+            offset_value = all_value+masked_value-the_mean_256
+            sum = np.sum((offset_value)**2, axis=0)
+            non_zero_var = sum/count_test
+            non_zero_var = non_zero_var[~np.isnan(non_zero_var)]  # remove nan
+            non_zero_var = non_zero_var[np.nonzero(non_zero_var)]  # remove zero
+            noise[trace_index] = non_zero_var.mean()
+
+            # var_test = np.zeros((256))
+            # for p_value in range(0, 256):  # each column of plain text with n go through all trace
+            #     plainText = np.where(data_plainText[:, 0:1] == p_value, 1, 0)
+            #     all_position = np.where(plainText * data_trace[:, trace_index:trace_index+1] != 0)
+            #     all_value_for = np.take(data_trace[:, trace_index:trace_index+1], all_position[0])
+
+            #     sum_test2 = all_value_for.sum()
+            #     count0_test2 = np.count_nonzero(plainText * data_trace[:, trace_index:trace_index+1] == 0)
+            #     mean_test2 = sum_test2/(data_plainText.shape[0]-count0_test2)
+
+            #     test_mean = all_value_for.mean()
+            #     valuesss = np.sum((all_value_for - all_value_for.mean())**2)
+            #     var_test[p_value] = valuesss
+            #     value2 = np.sum((all_value_for - all_value_for.mean())**2)/(np.count_nonzero(plainText == 1)-1)
+
+            #     the_var = all_value_for.var()
+            #     if np.isnan(the_var):
+            #         continue
+            #     var_256[p_value] = the_var
+            # valueb = var_256[p_value].mean()
+            # non_zero = var_256 != 0.0
+            # mean_non_zero = var_256[non_zero]
+            # noise[trace_index] = np.mean(mean_non_zero)
+        fig, ax = plt.subplots()
+        ax.plot(noise)
         return noise
 
 
@@ -271,6 +280,11 @@ if __name__ == '__main__':
     # myDataManager._SNR()
     # myDataManager._CPA()
     myDataManager._load_hw3_data()
+
+    signal = myDataManager._hw3_signal(myDataManager._data_trace, myDataManager._data_plaintext[:, 0:1])
+    noise = myDataManager._hw3_noise(myDataManager._data_trace, myDataManager._data_plaintext[:, 0:1])
+    value = signal/noise
+
     signal = myDataManager._hw3_signal(myDataManager._hw3_trace, myDataManager._hw3_text_in[:, 0:1])
     noise = myDataManager._hw3_noise(myDataManager._hw3_trace, myDataManager._hw3_text_in[:, 0:1])
     value = signal/noise
