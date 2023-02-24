@@ -213,32 +213,41 @@ class DataManager:
         signal = np.zeros((column_size))
         data_trace = data_trace[:, 0:column_size]
         test_plain_text_index = np.where(data_plainText == np.arange(256), 1, 0)
+
         data_trace_reshaped = data_trace[:, np.newaxis, :]
         test_plain_text_index_reshaped = test_plain_text_index[:, :, np.newaxis]
+
         result = data_trace_reshaped * test_plain_text_index_reshaped
         the_mean_256 = result.mean(axis=0) / np.count_nonzero(test_plain_text_index_reshaped, axis=0)
         signal = np.nanvar(the_mean_256, axis=0)
-        # fig, ax = plt.subplots()
-        # ax.plot(signal)
+        fig, ax = plt.subplots()
+        ax.plot(signal)
         return signal
 
     def _hw3_noise(self, data_trace, data_plainText):
         column_size = 50
         noise = np.zeros((column_size))
         data_trace = data_trace[:, 0:column_size]
-        for trace_index in range(0, column_size):
-            test_plain_text_index = np.where(data_plainText == np.arange(256), 1, 0)
-            all_value = data_trace[:, trace_index:trace_index+1]*test_plain_text_index
-            count = data_plainText.shape[0]-np.count_nonzero(all_value == 0, axis=0)
+        test_plain_text_index = np.where(data_plainText == np.arange(256), 1, 0)
 
-            the_mean_256 = all_value.sum(axis=0)/count
-            non_zero_var = np.sum((all_value+np.where(all_value == 0, 1, 0)*the_mean_256-the_mean_256)**2, axis=0)/count  # variance
-            non_zero_var = non_zero_var[~np.isnan(non_zero_var)]  # remove nan
-            non_zero_var = non_zero_var[np.nonzero(non_zero_var)]  # remove zero
-            noise[trace_index] = non_zero_var.mean()
+        data_trace_reshaped = data_trace[:, np.newaxis, :]
+        test_plain_text_index_reshaped = test_plain_text_index[:, :, np.newaxis]
+
+        all_value = data_trace_reshaped*test_plain_text_index_reshaped
+        count = data_plainText.shape[0]-np.count_nonzero(all_value == 0, axis=0)
+
+        the_mean_256 = all_value.sum(axis=0)/count
+        non_zero_var = np.sum((all_value+np.where(all_value == 0, 1, 0)*the_mean_256-the_mean_256)**2, axis=0)/count  # variance
+
+        noise = np.nanmean(non_zero_var, axis=0)
         fig, ax = plt.subplots()
         ax.plot(noise)
         return noise
+
+    def _hw3_SNR(self, data_trace, data_plainText):
+        SNR = self._hw3_signal(data_trace, data_plainText)/self._hw3_noise(data_trace, data_plainText)
+        fig, ax = plt.subplots()
+        ax.plot(SNR)
 
 
 if __name__ == '__main__':
@@ -253,13 +262,7 @@ if __name__ == '__main__':
     # myDataManager._CPA()
     myDataManager._load_hw3_data()
 
-    signal = myDataManager._hw3_signal(myDataManager._data_trace, myDataManager._data_plaintext[:, 0:1])
-    noise = myDataManager._hw3_noise(myDataManager._data_trace, myDataManager._data_plaintext[:, 0:1])
-    value = signal/noise
+    myDataManager._hw3_SNR(myDataManager._data_trace, myDataManager._data_plaintext[:, 0:1])
+    # myDataManager._hw3_SNR(myDataManager._hw3_trace, myDataManager._hw3_text_in[:, 0:1])
 
-    signal = myDataManager._hw3_signal(myDataManager._hw3_trace, myDataManager._hw3_text_in[:, 0:1])
-    noise = myDataManager._hw3_noise(myDataManager._hw3_trace, myDataManager._hw3_text_in[:, 0:1])
-    value = signal/noise
-    fig, ax = plt.subplots()
-    ax.plot(value)
     pass
