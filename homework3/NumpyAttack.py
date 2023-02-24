@@ -229,14 +229,10 @@ class DataManager:
         for trace_index in range(0, column_size):
             test_plain_text_index = np.where(data_plainText == np.arange(256), 1, 0)
             all_value = data_trace[:, trace_index:trace_index+1]*test_plain_text_index
-            count_test = data_plainText.shape[0]-np.count_nonzero(all_value == 0, axis=0)
-            the_mean_256 = all_value.sum(axis=0)/count_test
+            count = data_plainText.shape[0]-np.count_nonzero(all_value == 0, axis=0)
 
-            mask = np.where(all_value == 0, 1, 0)  # find all zero and mask them as 1
-            masked_value = mask*the_mean_256  # replace all zero with mean
-            offset_value = all_value+masked_value-the_mean_256
-            sum = np.sum((offset_value)**2, axis=0)
-            non_zero_var = sum/count_test
+            the_mean_256 = all_value.sum(axis=0)/count
+            non_zero_var = np.sum((all_value+np.where(all_value == 0, 1, 0)*the_mean_256-the_mean_256)**2, axis=0)/count  # variance
             non_zero_var = non_zero_var[~np.isnan(non_zero_var)]  # remove nan
             non_zero_var = non_zero_var[np.nonzero(non_zero_var)]  # remove zero
             noise[trace_index] = non_zero_var.mean()
