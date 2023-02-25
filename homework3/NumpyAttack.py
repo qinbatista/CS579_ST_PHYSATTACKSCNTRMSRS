@@ -37,10 +37,29 @@ class DataManager:
         self.__n_plaintext = self._data_plaintext.shape
         pass
 
-    def _load_hw3_data(self):
+    def _load_hw3_data_trace_attack(self):
+        self._hw3_key_list_profiling = np.load('traces_attack_hw3/keylist_profiling.npy')
+        self._hw3_text_in_profiling = np.load('traces_attack_hw3/textin_profiling.npy')
+        self._hw3_text_out_profiling = np.load('traces_attack_hw3/textout_profiling.npy')
+        self._hw3_text_traces_profiling_int16 = np.load('traces_attack_hw3/traces_profiling_int16.npy')
+
+    def _load_hw3_data_trace_attack(self):
         self._hw3_trace = np.load('traces_attack_hw3/traces_attack_int16.npy')
         self._hw3_text_in = np.load('traces_attack_hw3/textin_attack.npy')
         self._hw3_text_out = np.load('traces_attack_hw3/textout_attack.npy')
+
+    def _load_hw3_data_tvla_trace(self):
+        self._0_key_list = np.load('tvla_traces_hw3/tvla_0keylist.npy')
+        self._0_known_key = np.load('tvla_traces_hw3/tvla_0knownkey.npy')
+        self._0_text_in = np.load('tvla_traces_hw3/tvla_0textin.npy')
+        self._0_text_out = np.load('tvla_traces_hw3/tvla_0textout.npy')
+        self._0_traces_int16 = np.load('tvla_traces_hw3/tvla_0traces_int16.npy')
+
+        self._1_key_list = np.load('tvla_traces_hw3/tvla_1keylist.npy')
+        self._1_known_key = np.load('tvla_traces_hw3/tvla_1knownkey.npy')
+        self._1_text_in = np.load('tvla_traces_hw3/tvla_1textin.npy')
+        self._1_text_out = np.load('tvla_traces_hw3/tvla_1textout.npy')
+        self._1_traces_int16 = np.load('tvla_traces_hw3/tvla_1traces_int16.npy')
 
     def _naive_approach_mean(self):
         self._timer._start()
@@ -209,7 +228,7 @@ class DataManager:
         print(f"Correlation: {string_append}")
 
     def _hw3_signal(self, data_trace, data_plainText):
-        column_size = 50
+        column_size = data_trace.shape[1]
         signal = np.zeros((column_size))
         data_trace = data_trace[:, 0:column_size]
         test_plain_text_index = np.where(data_plainText == np.arange(256), 1, 0)
@@ -220,12 +239,12 @@ class DataManager:
         result = data_trace_reshaped * test_plain_text_index_reshaped
         the_mean_256 = result.mean(axis=0) / np.count_nonzero(test_plain_text_index_reshaped, axis=0)
         signal = np.nanvar(the_mean_256, axis=0)
-        fig, ax = plt.subplots()
-        ax.plot(signal)
+        # fig, ax = plt.subplots()
+        # ax.plot(signal)
         return signal
 
     def _hw3_noise(self, data_trace, data_plainText):
-        column_size = 50
+        column_size = data_trace.shape[1]
         noise = np.zeros((column_size))
         data_trace = data_trace[:, 0:column_size]
         test_plain_text_index = np.where(data_plainText == np.arange(256), 1, 0)
@@ -240,14 +259,18 @@ class DataManager:
         non_zero_var = np.sum((all_value+np.where(all_value == 0, 1, 0)*the_mean_256-the_mean_256)**2, axis=0)/count  # variance
 
         noise = np.nanmean(non_zero_var, axis=0)
-        fig, ax = plt.subplots()
-        ax.plot(noise)
+        # fig, ax = plt.subplots()
+        # ax.plot(noise)
         return noise
 
     def _hw3_SNR(self, data_trace, data_plainText):
-        SNR = self._hw3_signal(data_trace, data_plainText)/self._hw3_noise(data_trace, data_plainText)
+        value = self._hw3_signal(data_trace, data_plainText)/self._hw3_noise(data_trace, data_plainText)
+        mask = np.isinf(value)
+        value = value[~mask]
+        max_index = np.argmax(value)
+        print(max_index)
         fig, ax = plt.subplots()
-        ax.plot(SNR)
+        ax.plot(value)
 
 
 if __name__ == '__main__':
@@ -260,9 +283,12 @@ if __name__ == '__main__':
     # myDataManager._noise()
     # myDataManager._SNR()
     # myDataManager._CPA()
-    myDataManager._load_hw3_data()
+    myDataManager._load_hw3_data2()
+    myDataManager._load_hw3_data_trace_attack()
 
-    myDataManager._hw3_SNR(myDataManager._data_trace, myDataManager._data_plaintext[:, 0:1])
-    # myDataManager._hw3_SNR(myDataManager._hw3_trace, myDataManager._hw3_text_in[:, 0:1])
+    # myDataManager._hw3_SNR(myDataManager._data_trace, myDataManager._data_plaintext[:, 0:1])
+    number_raw = 290
+    number_trace = 1400
+    myDataManager._hw3_SNR(myDataManager._hw3_trace[0:number_raw, 0:number_trace], myDataManager._hw3_text_in[0:number_raw, 0:1])
 
     pass
