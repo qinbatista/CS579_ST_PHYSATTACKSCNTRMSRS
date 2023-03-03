@@ -4,6 +4,7 @@ from TimerTool import TimerTool
 from matplotlib import pyplot as plt
 import math
 import os
+from tqdm import tqdm
 
 
 class DataManager:
@@ -218,8 +219,7 @@ class DataManager:
         result = data_trace_reshaped * test_plain_text_index_reshaped
         the_mean_256 = result.mean(axis=0) / np.count_nonzero(test_plain_text_index_reshaped, axis=0)
         signal = np.nanvar(the_mean_256, axis=0)
-        if os.path.exists("result_signal"+str(bit_index)+".npy"):
-            os.remove("result_signal"+str(bit_index)+".npy")
+
         if os.path.exists("result_signal"+str(bit_index)+".npy") == False:
             np.save("result_signal"+str(bit_index)+".npy", signal)
         else:
@@ -246,8 +246,7 @@ class DataManager:
         non_zero_var = np.sum((all_value+np.where(all_value == 0, 1, 0)*the_mean_256-the_mean_256)**2, axis=0)/count  # variance
 
         noise = np.nanmean(non_zero_var, axis=0)
-        if os.path.exists("result_noise"+str(bit_index)+".npy"):
-            os.remove("result_noise"+str(bit_index)+".npy")
+
         if os.path.exists("result_noise"+str(bit_index)+".npy") == False:
             np.save("result_noise"+str(bit_index)+".npy", noise)
         else:
@@ -256,22 +255,33 @@ class DataManager:
             np.save("result_noise"+str(bit_index)+".npy", updated_data)
 
     def _hw3_SNR(self, data_trace, data_plainText):
-        for i in range(0,1):
-            self._hw3_signal(data_trace, data_plainText[:, i:1+i], i)
-            self._hw3_noise(data_trace, data_plainText[:, i:1+i], i)
+        all_trace = data_trace.shape[1]
+        count_trace = 100
+        loop_count = int(all_trace/count_trace)
+
+        fig, ax = plt.subplots()
+        for i in tqdm(range(0, 16)):
+            if os.path.exists("result_signal"+str(i)+".npy"):
+                os.remove("result_signal"+str(i)+".npy")
+            if os.path.exists("result_noise"+str(i)+".npy"):
+                os.remove("result_noise"+str(i)+".npy")
+            for loop in tqdm(range(0, loop_count)):
+                self._hw3_signal(data_trace[:, count_trace*loop:count_trace*(loop+1)], data_plainText[:,i:i+1], i)
+                self._hw3_noise(data_trace[:, count_trace*loop:count_trace*(loop+1)], data_plainText[:, i:i+1], i)
 
             signal = np.load(f'result_signal{i}.npy')
             noise = np.load(f'result_noise{i}.npy')
-            fig, ax = plt.subplots()
-            ax.plot(signal)
-            fig, ax = plt.subplots()
-            ax.plot(noise)
+            # fig, ax = plt.subplots()
+            # ax.plot(signal)
+            # fig, ax = plt.subplots()
+            # ax.plot(noise)
             the_SNR = signal/noise
             mask = np.isinf(the_SNR)
             the_SNR = the_SNR[~mask]
-            fig, ax = plt.subplots()
-            ax.plot(the_SNR)
-            pass
+            ax.plot(the_SNR,linestyle='-')
+            # plt.legend()
+        plt.show()
+        pass
 
 
 if __name__ == '__main__':
@@ -287,6 +297,6 @@ if __name__ == '__main__':
     myDataManager._load_hw3_data()
 
     # myDataManager._hw3_SNR(myDataManager._data_trace, myDataManager._data_plaintext[:, 0:1])
-    myDataManager._hw3_SNR(myDataManager._hw3_trace[0:3000,:], myDataManager._hw3_text_in[0:3000,:])
+    myDataManager._hw3_SNR(myDataManager._hw3_trace[:, :], myDataManager._hw3_text_in[:, :])
 
     pass
