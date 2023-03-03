@@ -3,14 +3,12 @@ from multiprocessing import Pool, Manager
 from TimerTool import TimerTool
 from matplotlib import pyplot as plt
 import math
+import os
 
 
 class DataManager:
     def __init__(self, measurement_data_2023_uint8_path, traces_10000x50_int8_path, plaintext_10000x16_uint8):
         self._timer = TimerTool()
-        self._data_measurement = np.memmap(measurement_data_2023_uint8_path, dtype='uint8', mode='r')
-        self._data_measurement = self._data_measurement[:]  # Test part
-        self.__n_measurement = self._data_measurement.shape[0]
         self.__256bitKey = np.arange(256).reshape(1, 256)
         self._sbox_table = np.array([
             0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
@@ -37,29 +35,10 @@ class DataManager:
         self.__n_plaintext = self._data_plaintext.shape
         pass
 
-    def _load_hw3_data_trace_attack(self):
-        self._hw3_key_list_profiling = np.load('traces_attack_hw3/keylist_profiling.npy')
-        self._hw3_text_in_profiling = np.load('traces_attack_hw3/textin_profiling.npy')
-        self._hw3_text_out_profiling = np.load('traces_attack_hw3/textout_profiling.npy')
-        self._hw3_text_traces_profiling_int16 = np.load('traces_attack_hw3/traces_profiling_int16.npy')
-
-    def _load_hw3_data_trace_attack(self):
+    def _load_hw3_data(self):
         self._hw3_trace = np.load('traces_attack_hw3/traces_attack_int16.npy')
         self._hw3_text_in = np.load('traces_attack_hw3/textin_attack.npy')
         self._hw3_text_out = np.load('traces_attack_hw3/textout_attack.npy')
-
-    def _load_hw3_data_tvla_trace(self):
-        self._0_key_list = np.load('tvla_traces_hw3/tvla_0keylist.npy')
-        self._0_known_key = np.load('tvla_traces_hw3/tvla_0knownkey.npy')
-        self._0_text_in = np.load('tvla_traces_hw3/tvla_0textin.npy')
-        self._0_text_out = np.load('tvla_traces_hw3/tvla_0textout.npy')
-        self._0_traces_int16 = np.load('tvla_traces_hw3/tvla_0traces_int16.npy')
-
-        self._1_key_list = np.load('tvla_traces_hw3/tvla_1keylist.npy')
-        self._1_known_key = np.load('tvla_traces_hw3/tvla_1knownkey.npy')
-        self._1_text_in = np.load('tvla_traces_hw3/tvla_1textin.npy')
-        self._1_text_out = np.load('tvla_traces_hw3/tvla_1textout.npy')
-        self._1_traces_int16 = np.load('tvla_traces_hw3/tvla_1traces_int16.npy')
 
     def _naive_approach_mean(self):
         self._timer._start()
@@ -227,7 +206,7 @@ class DataManager:
             string_append += f"{correlation[i]} "
         print(f"Correlation: {string_append}")
 
-    def _hw3_signal(self, data_trace, data_plainText):
+    def _hw3_signal(self, data_trace, data_plainText, bit_index):
         column_size = data_trace.shape[1]
         signal = np.zeros((column_size))
         data_trace = data_trace[:, 0:column_size]
@@ -239,11 +218,19 @@ class DataManager:
         result = data_trace_reshaped * test_plain_text_index_reshaped
         the_mean_256 = result.mean(axis=0) / np.count_nonzero(test_plain_text_index_reshaped, axis=0)
         signal = np.nanvar(the_mean_256, axis=0)
+        if os.path.exists("result_signal"+str(bit_index)+".npy"):
+            os.remove("result_signal"+str(bit_index)+".npy")
+        if os.path.exists("result_signal"+str(bit_index)+".npy") == False:
+            np.save("result_signal"+str(bit_index)+".npy", signal)
+        else:
+            existing_data = np.load("result_signal"+str(bit_index)+".npy")
+            updated_data = np.concatenate((existing_data, signal), axis=0)
+            np.save("result_signal"+str(bit_index)+".npy", updated_data)
         # fig, ax = plt.subplots()
         # ax.plot(signal)
-        return signal
+        # return signal
 
-    def _hw3_noise(self, data_trace, data_plainText):
+    def _hw3_noise(self, data_trace, data_plainText, bit_index):
         column_size = data_trace.shape[1]
         noise = np.zeros((column_size))
         data_trace = data_trace[:, 0:column_size]
@@ -259,18 +246,32 @@ class DataManager:
         non_zero_var = np.sum((all_value+np.where(all_value == 0, 1, 0)*the_mean_256-the_mean_256)**2, axis=0)/count  # variance
 
         noise = np.nanmean(non_zero_var, axis=0)
-        # fig, ax = plt.subplots()
-        # ax.plot(noise)
-        return noise
+        if os.path.exists("result_noise"+str(bit_index)+".npy"):
+            os.remove("result_noise"+str(bit_index)+".npy")
+        if os.path.exists("result_noise"+str(bit_index)+".npy") == False:
+            np.save("result_noise"+str(bit_index)+".npy", noise)
+        else:
+            existing_data = np.load("result_noise"+str(bit_index)+".npy")
+            updated_data = np.concatenate((existing_data, noise), axis=0)
+            np.save("result_noise"+str(bit_index)+".npy", updated_data)
 
     def _hw3_SNR(self, data_trace, data_plainText):
-        value = self._hw3_signal(data_trace, data_plainText)/self._hw3_noise(data_trace, data_plainText)
-        mask = np.isinf(value)
-        value = value[~mask]
-        max_index = np.argmax(value)
-        print(max_index)
-        fig, ax = plt.subplots()
-        ax.plot(value)
+        for i in range(0,1):
+            self._hw3_signal(data_trace, data_plainText[:, i:1+i], i)
+            self._hw3_noise(data_trace, data_plainText[:, i:1+i], i)
+
+            signal = np.load(f'result_signal{i}.npy')
+            noise = np.load(f'result_noise{i}.npy')
+            fig, ax = plt.subplots()
+            ax.plot(signal)
+            fig, ax = plt.subplots()
+            ax.plot(noise)
+            the_SNR = signal/noise
+            mask = np.isinf(the_SNR)
+            the_SNR = the_SNR[~mask]
+            fig, ax = plt.subplots()
+            ax.plot(the_SNR)
+            pass
 
 
 if __name__ == '__main__':
@@ -283,12 +284,9 @@ if __name__ == '__main__':
     # myDataManager._noise()
     # myDataManager._SNR()
     # myDataManager._CPA()
-    myDataManager._load_hw3_data2()
-    myDataManager._load_hw3_data_trace_attack()
+    myDataManager._load_hw3_data()
 
     # myDataManager._hw3_SNR(myDataManager._data_trace, myDataManager._data_plaintext[:, 0:1])
-    number_raw = 290
-    number_trace = 1400
-    myDataManager._hw3_SNR(myDataManager._hw3_trace[0:number_raw, 0:number_trace], myDataManager._hw3_text_in[0:number_raw, 0:1])
+    myDataManager._hw3_SNR(myDataManager._hw3_trace[0:3000,:], myDataManager._hw3_text_in[0:3000,:])
 
     pass
