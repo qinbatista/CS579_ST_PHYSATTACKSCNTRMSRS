@@ -266,7 +266,7 @@ class DataManager:
             if os.path.exists("result_noise"+str(i)+".npy"):
                 os.remove("result_noise"+str(i)+".npy")
             for loop in tqdm(range(0, loop_count)):
-                self._hw3_signal(data_trace[:, count_trace*loop:count_trace*(loop+1)], data_plainText[:,i:i+1], i)
+                self._hw3_signal(data_trace[:, count_trace*loop:count_trace*(loop+1)], data_plainText[:, i:i+1], i)
                 self._hw3_noise(data_trace[:, count_trace*loop:count_trace*(loop+1)], data_plainText[:, i:i+1], i)
 
             signal = np.load(f'result_signal{i}.npy')
@@ -278,10 +278,55 @@ class DataManager:
             the_SNR = signal/noise
             mask = np.isinf(the_SNR)
             the_SNR = the_SNR[~mask]
-            ax.plot(the_SNR,linestyle='-')
+            ax.plot(the_SNR, linestyle='-')
             # plt.legend()
         plt.show()
         pass
+
+    def _trace_mean(self):
+        mean = np.mean(myDataManager._hw3_trace, axis=0)
+        fig, ax = plt.subplots()
+        ax.plot(mean, linestyle='-')
+        plt.show()
+
+    def _hw3_CPA(self, plainText, trace):
+        key = []
+        correlation = []
+        for column in tqdm(range(0, 16)):
+            candidate_keys_values = plainText[:, column:column+1] ^ self.__256bitKey
+            SBOX_matrix = np.take(self._sbox_table, candidate_keys_values)
+
+            # power Model
+            trace_column_mean = np.mean(trace, axis=0).reshape(1, trace.shape[1])
+            t_dj = trace-trace_column_mean  # t_dj- mean_t
+            keys_column_mean = np.mean(SBOX_matrix, axis=0)
+            h_dj = SBOX_matrix-keys_column_mean  # h_dj- mean_h
+
+            r_ij = np.zeros((trace.shape[1], 256))
+            raws = int(trace.shape[1])
+            for trace_id in tqdm(range(0, raws)):
+                # for key_index in range(0, 255):
+                up_value = np.sum(h_dj[:, :]*t_dj[:, trace_id:trace_id+1], axis=0)
+                value1 = np.sum(h_dj[:, :]**2, axis=0)
+                value2 = np.sum(t_dj[:, trace_id:trace_id+1]**2)
+                value3 = np.sqrt(value1*value2)
+                value = up_value / value3
+                r_ij[trace_id] = value
+            # fig, ax = plt.subplots()
+            # ax.plot(r_ij)
+            # pass
+            max_correlation = np.nanmax(r_ij)
+            correlation.append(max_correlation)
+            row_idx, col_idx = np.where(r_ij == max_correlation)
+            # flat_index = np.argmax(r_ij, axis=None)
+            # index = np.unravel_index(flat_index, r_ij.shape)[1]
+            key.append(int(col_idx))
+        correlation = np.around(correlation, decimals=4)
+        print(f"Key: {key}")
+        string_append = ""
+        for i in range(0, 16):
+            string_append += f"{correlation[i]} "
+        print(f"Correlation: {string_append}")
 
 
 if __name__ == '__main__':
@@ -297,6 +342,9 @@ if __name__ == '__main__':
     myDataManager._load_hw3_data()
 
     # myDataManager._hw3_SNR(myDataManager._data_trace, myDataManager._data_plaintext[:, 0:1])
-    myDataManager._hw3_SNR(myDataManager._hw3_trace[:, :], myDataManager._hw3_text_in[:, :])
+    # myDataManager._hw3_SNR(myDataManager._hw3_trace[:, :], myDataManager._hw3_text_in[:, :])
+    # myDataManager._trace_mean()
+    # myDataManager._hw3_CPA(myDataManager._data_plaintext, myDataManager._data_trace)
+    myDataManager._hw3_CPA(myDataManager._hw3_text_in, myDataManager._hw3_trace)
 
     pass
