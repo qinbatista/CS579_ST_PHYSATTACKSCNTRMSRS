@@ -41,6 +41,15 @@ class DataManager:
         self._hw3_text_in = np.load('traces_attack_hw3/textin_attack.npy')
         self._hw3_text_out = np.load('traces_attack_hw3/textout_attack.npy')
 
+    def _load_hw3_data_tvla(self):
+        self.tvla_0textin = np.load('tvla_traces_hw3/tvla_0textin.npy')
+        self.tvla_0traces_int16 = np.load('tvla_traces_hw3/tvla_0traces_int16.npy')
+
+        self.tvla_1textin = np.load('tvla_traces_hw3/tvla_1textin.npy')
+        self.tvla_1traces_int16 = np.load('tvla_traces_hw3/tvla_1traces_int16.npy')
+        pass
+
+
     def _naive_approach_mean(self):
         self._timer._start()
         squared_differences = 0
@@ -339,12 +348,12 @@ if __name__ == '__main__':
     # myDataManager._noise()
     # myDataManager._SNR()
     # myDataManager._CPA()
-    myDataManager._load_hw3_data()
-
+    # myDataManager._load_hw3_data()
+    myDataManager._load_hw3_data_tvla()
     # myDataManager._hw3_SNR(myDataManager._data_trace, myDataManager._data_plaintext[:, 0:1])
     # myDataManager._hw3_SNR(myDataManager._hw3_trace[:, :], myDataManager._hw3_text_in[:, :])
     # myDataManager._trace_mean()
     # myDataManager._hw3_CPA(myDataManager._data_plaintext, myDataManager._data_trace)
-    myDataManager._hw3_CPA(myDataManager._hw3_text_in, myDataManager._hw3_trace)
+    # myDataManager._hw3_CPA(myDataManager._hw3_text_in, myDataManager._hw3_trace)
 
     pass
