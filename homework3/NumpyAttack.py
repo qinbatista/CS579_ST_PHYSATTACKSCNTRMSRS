@@ -338,8 +338,8 @@ class DataManager:
         print(f"Correlation: {string_append}")
 
     def _Welch(self):
-        group_a = np.delete(self.tvla_0traces_int16, 10000, 0)
-        group_b = np.delete(self.tvla_1traces_int16, 10000, 0)
+        group_a = self.tvla_0traces_int16[0:10000,:]
+        group_b = self.tvla_1traces_int16[0:10000,:]
         Xa = np.mean(group_a, axis=0)
         Va = np.var(group_a, axis=0)
         Xb = np.mean(group_b, axis=0)
