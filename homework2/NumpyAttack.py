@@ -210,8 +210,8 @@ if __name__ == '__main__':
     # new_mean = myDataManager._welford_algorithm()
     # myDataManager._one_pass()^
     # myDataManager._histogram_method()
-    # myDataManager._signal()
-    # myDataManager._noise()
-    # myDataManager._SNR()
+    myDataManager._signal()
+    myDataManager._noise()
+    myDataManager._SNR()
     myDataManager._CPA()
     pass

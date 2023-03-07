@@ -49,7 +49,6 @@ class DataManager:
         self.tvla_1traces_int16 = np.load('tvla_traces_hw3/tvla_1traces_int16.npy')
         pass
 
-
     def _naive_approach_mean(self):
         self._timer._start()
         squared_differences = 0
@@ -270,13 +269,13 @@ class DataManager:
 
         fig, ax = plt.subplots()
         for i in tqdm(range(0, 16)):
-            if os.path.exists("result_signal"+str(i)+".npy"):
-                os.remove("result_signal"+str(i)+".npy")
-            if os.path.exists("result_noise"+str(i)+".npy"):
-                os.remove("result_noise"+str(i)+".npy")
-            for loop in tqdm(range(0, loop_count)):
-                self._hw3_signal(data_trace[:, count_trace*loop:count_trace*(loop+1)], data_plainText[:, i:i+1], i)
-                self._hw3_noise(data_trace[:, count_trace*loop:count_trace*(loop+1)], data_plainText[:, i:i+1], i)
+            # if os.path.exists("result_signal"+str(i)+".npy"):
+            #     os.remove("result_signal"+str(i)+".npy")
+            # if os.path.exists("result_noise"+str(i)+".npy"):
+            #     os.remove("result_noise"+str(i)+".npy")
+            # for loop in tqdm(range(0, loop_count)):
+            #     self._hw3_signal(data_trace[:, count_trace*loop:count_trace*(loop+1)], data_plainText[:, i:i+1], i)
+            #     self._hw3_noise(data_trace[:, count_trace*loop:count_trace*(loop+1)], data_plainText[:, i:i+1], i)
 
             signal = np.load(f'result_signal{i}.npy')
             noise = np.load(f'result_noise{i}.npy')
@@ -303,7 +302,8 @@ class DataManager:
         correlation = []
         for column in tqdm(range(0, 16)):
             candidate_keys_values = plainText[:, column:column+1] ^ self.__256bitKey
-            SBOX_matrix = np.take(self._sbox_table, candidate_keys_values)
+            # SBOX_matrix = np.take(self._sbox_table, candidate_keys_values)
+            SBOX_matrix = candidate_keys_values
 
             # power Model
             trace_column_mean = np.mean(trace, axis=0).reshape(1, trace.shape[1])
@@ -313,7 +313,7 @@ class DataManager:
 
             r_ij = np.zeros((trace.shape[1], 256))
             raws = int(trace.shape[1])
-            for trace_id in tqdm(range(0, raws)):
+            for trace_id in tqdm(range(0, 4000)):
                 # for key_index in range(0, 255):
                 up_value = np.sum(h_dj[:, :]*t_dj[:, trace_id:trace_id+1], axis=0)
                 value1 = np.sum(h_dj[:, :]**2, axis=0)
@@ -337,6 +337,22 @@ class DataManager:
             string_append += f"{correlation[i]} "
         print(f"Correlation: {string_append}")
 
+    def _Welch(self):
+        group_a = np.delete(self.tvla_0traces_int16, 10000, 0)
+        group_b = np.delete(self.tvla_1traces_int16, 10000, 0)
+        Xa = np.mean(group_a, axis=0)
+        Va = np.var(group_a, axis=0)
+        Xb = np.mean(group_b, axis=0)
+        Vb = np.var(group_b, axis=0)
+        T = (Xa-Xb)/np.sqrt(Va/group_a.shape[0]+Vb/group_b.shape[0])
+        standardPositive = np.full((24000, 1), 4.5)
+        standardNegative = np.full((24000, 1), -4.5)
+        fig, ax = plt.subplots()
+        ax.plot(T, linestyle='-')
+        ax.plot(standardPositive, linestyle='-')
+        ax.plot(standardNegative, linestyle='-')
+        plt.show()
+
 
 if __name__ == '__main__':
     myDataManager = DataManager('measurement_data_2023_uint8.bin', 'traces_10000x50_int8.bin', 'plaintext_10000x16_uint8.bin')
@@ -348,12 +364,13 @@ if __name__ == '__main__':
     # myDataManager._noise()
     # myDataManager._SNR()
     # myDataManager._CPA()
-    # myDataManager._load_hw3_data()
+    myDataManager._load_hw3_data()
     myDataManager._load_hw3_data_tvla()
     # myDataManager._hw3_SNR(myDataManager._data_trace, myDataManager._data_plaintext[:, 0:1])
     # myDataManager._hw3_SNR(myDataManager._hw3_trace[:, :], myDataManager._hw3_text_in[:, :])
     # myDataManager._trace_mean()
     # myDataManager._hw3_CPA(myDataManager._data_plaintext, myDataManager._data_trace)
     # myDataManager._hw3_CPA(myDataManager._hw3_text_in, myDataManager._hw3_trace)
+    myDataManager._Welch()
 
     pass
